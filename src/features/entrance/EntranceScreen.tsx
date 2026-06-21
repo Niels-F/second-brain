@@ -1,7 +1,10 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { useCreateProject, useProjects } from '../projects/hooks'
 import { ProjectCard } from './ProjectCard'
+
+// Lazy-loaded so the heavy 3D libraries only download when you open the 3D view.
+const Projects3D = lazy(() => import('./Projects3D'))
 
 export function EntranceScreen({ onOpen }: { onOpen: (id: string) => void }) {
   const { signOut } = useAuth()
@@ -9,6 +12,7 @@ export function EntranceScreen({ onOpen }: { onOpen: (id: string) => void }) {
   const createProject = useCreateProject()
   const [search, setSearch] = useState('')
   const [newName, setNewName] = useState('')
+  const [view, setView] = useState<'list' | '3d'>('list')
 
   const items = projects.data ?? []
 
@@ -29,6 +33,33 @@ export function EntranceScreen({ onOpen }: { onOpen: (id: string) => void }) {
     createProject.mutate(name, { onSuccess: () => setNewName('') })
   }
 
+  if (view === '3d') {
+    return (
+      <main className="relative h-screen w-full bg-neutral-950 text-neutral-100">
+        <div className="absolute left-3 top-3 z-10 flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900/90 px-3 py-2 text-sm backdrop-blur">
+          <button
+            onClick={() => setView('list')}
+            className="text-neutral-300 hover:text-white"
+          >
+            ← List
+          </button>
+          <span className="text-neutral-500">
+            {items.length} project{items.length === 1 ? '' : 's'} · drag to orbit · click an orb to open
+          </span>
+        </div>
+        <Suspense
+          fallback={
+            <div className="flex h-screen items-center justify-center text-neutral-500">
+              Loading 3D…
+            </div>
+          }
+        >
+          <Projects3D projects={items} onOpen={onOpen} />
+        </Suspense>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100">
       <div className="mx-auto max-w-2xl px-6 py-10">
@@ -39,12 +70,20 @@ export function EntranceScreen({ onOpen }: { onOpen: (id: string) => void }) {
             </p>
             <h1 className="mt-1 text-2xl font-semibold">Your projects</h1>
           </div>
-          <button
-            onClick={signOut}
-            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900"
-          >
-            Sign out
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setView('3d')}
+              className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900"
+            >
+              🌐 3D view
+            </button>
+            <button
+              onClick={signOut}
+              className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900"
+            >
+              Sign out
+            </button>
+          </div>
         </header>
 
         {/* Fast lane: jump straight back to the last project you opened */}
