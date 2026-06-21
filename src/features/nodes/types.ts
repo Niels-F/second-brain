@@ -1,4 +1,6 @@
 // Named MindNode to avoid clashing with the DOM's built-in `Node` type.
+export type NodeStatus = 'success' | 'fail' | null
+
 export type MindNode = {
   id: string
   project_id: string
@@ -8,6 +10,7 @@ export type MindNode = {
   next_action: string | null
   maturity: number
   image_url: string | null
+  status: NodeStatus
   pos_x: number
   pos_y: number
   created_at: string

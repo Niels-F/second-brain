@@ -33,7 +33,7 @@ export function useUpdateNodePosition(projectId: string) {
 }
 
 type NodeFields = Partial<
-  Pick<MindNode, 'title' | 'content' | 'next_action' | 'maturity' | 'image_url'>
+  Pick<MindNode, 'title' | 'content' | 'next_action' | 'maturity' | 'image_url' | 'status'>
 >
 
 export function useUpdateNode(projectId: string) {

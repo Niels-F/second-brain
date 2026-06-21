@@ -5,9 +5,11 @@ import {
   Controls,
   useNodesState,
   useEdgesState,
+  MarkerType,
   type Node as RFNode,
   type Edge as RFEdge,
   type Connection,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useQueryClient } from '@tanstack/react-query'
@@ -28,6 +30,7 @@ function toRFNodes(
   nodes: MindNode[],
   colorById: Map<string, string>,
   onAddChild: (id: string) => void,
+  latestId: string | null,
 ): RFNode[] {
   return nodes.map((n) => {
     const color = (n.category_id && colorById.get(n.category_id)) || '#94a3b8'
@@ -35,7 +38,14 @@ function toRFNodes(
       id: n.id,
       type: 'mind',
       position: { x: n.pos_x, y: n.pos_y },
-      data: { label: n.title, color, image: n.image_url ?? null, onAddChild },
+      data: {
+        label: n.title,
+        color,
+        image: n.image_url ?? null,
+        isLatest: n.id === latestId,
+        status: n.status ?? null,
+        onAddChild,
+      },
     }
   })
 }
@@ -45,6 +55,7 @@ function toRFEdges(links: Link[]): RFEdge[] {
     id: l.id,
     source: l.source_node_id,
     target: l.target_node_id,
+    markerEnd: { type: MarkerType.ArrowClosed },
   }))
 }
 
@@ -59,6 +70,7 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
   const createLink = useCreateLink(projectId)
   const deleteLink = useDeleteLink(projectId)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const rfRef = useRef<ReactFlowInstance | null>(null)
 
   const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data])
   const colorById = useMemo(() => {
@@ -100,10 +112,20 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
   )
 
   // React Flow keeps its own copy of nodes/edges; we sync from the database.
+  // The single most-recently-touched node — it gets the pulsing glow.
+  const latestId = useMemo(() => {
+    const all = nodesQ.data ?? []
+    if (all.length === 0) return null
+    return all.reduce((a, b) =>
+      new Date(b.last_touched_at) > new Date(a.last_touched_at) ? b : a,
+    ).id
+  }, [nodesQ.data])
+
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RFNode>([])
   useEffect(() => {
-    if (nodesQ.data) setRfNodes(toRFNodes(nodesQ.data, colorById, handleAddChild))
-  }, [nodesQ.data, colorById, handleAddChild, setRfNodes])
+    if (nodesQ.data)
+      setRfNodes(toRFNodes(nodesQ.data, colorById, handleAddChild, latestId))
+  }, [nodesQ.data, colorById, handleAddChild, latestId, setRfNodes])
 
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<RFEdge>([])
   useEffect(() => {
@@ -142,11 +164,29 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
     createLink.mutate({ projectId, sourceId: conn.source, targetId: conn.target })
   }
 
+  // Resume: fly the camera to the most-recently-touched node and open it.
+  function handleResume() {
+    const all = nodesQ.data ?? []
+    if (all.length === 0) return
+    const last = all.reduce((a, b) =>
+      new Date(b.last_touched_at) > new Date(a.last_touched_at) ? b : a,
+    )
+    rfRef.current?.fitView({ nodes: [{ id: last.id }], duration: 800, maxZoom: 1.5 })
+    setSelectedNodeId(last.id)
+  }
+
   const selectedNode = nodesQ.data?.find((n) => n.id === selectedNodeId) ?? null
 
   return (
     <div className="relative h-full w-full">
       <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/90 p-2 backdrop-blur">
+        <button
+          onClick={handleResume}
+          title="Fly to the last node you touched"
+          className="rounded border border-neutral-700 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800"
+        >
+          ↩ Resume
+        </button>
         <select
           value={selectedCat}
           onChange={(e) => setSelectedCat(e.target.value)}
@@ -172,6 +212,9 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
       <ReactFlow
         colorMode="dark"
         nodeTypes={nodeTypes}
+        onInit={(inst) => {
+          rfRef.current = inst
+        }}
         nodes={rfNodes}
         edges={rfEdges}
         onNodesChange={onNodesChange}

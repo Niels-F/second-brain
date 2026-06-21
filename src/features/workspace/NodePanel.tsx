@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
-import type { MindNode } from '../nodes/types'
+import type { MindNode, NodeStatus } from '../nodes/types'
 import type { Category } from '../categories/types'
 import { uploadNodeImage } from '../nodes/api'
 import { useDeleteNode, useUpdateNode } from '../nodes/hooks'
@@ -24,6 +24,7 @@ export function NodePanel({
   const [maturity, setMaturity] = useState(node.maturity)
   const [imageUrl, setImageUrl] = useState<string | null>(node.image_url ?? null)
   const [uploading, setUploading] = useState(false)
+  const [status, setStatus] = useState<NodeStatus>(node.status)
 
   // When a different node is selected, refill the form with its values.
   useEffect(() => {
@@ -32,6 +33,7 @@ export function NodePanel({
     setNextAction(node.next_action ?? '')
     setMaturity(node.maturity)
     setImageUrl(node.image_url ?? null)
+    setStatus(node.status)
   }, [node.id])
 
   const category = categories.find((c) => c.id === node.category_id)
@@ -45,6 +47,7 @@ export function NodePanel({
         next_action: nextAction,
         maturity,
         image_url: imageUrl,
+        status,
       },
     })
   }
@@ -74,6 +77,11 @@ export function NodePanel({
   function handleRemoveImage() {
     setImageUrl(null)
     updateNode.mutate({ id: node.id, fields: { image_url: null } })
+  }
+
+  function setNodeStatus(s: NodeStatus) {
+    setStatus(s)
+    updateNode.mutate({ id: node.id, fields: { status: s } })
   }
 
   return (
@@ -152,6 +160,40 @@ export function NodePanel({
             />
           </label>
         )}
+      </div>
+
+      <div>
+        <span className="text-xs text-neutral-500">Outcome</span>
+        <div className="mt-1 flex gap-2">
+          <button
+            onClick={() => setNodeStatus('success')}
+            className={
+              'flex-1 rounded-md border px-2 py-1.5 text-sm ' +
+              (status === 'success'
+                ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300'
+                : 'border-neutral-700 text-neutral-400 hover:bg-neutral-800')
+            }
+          >
+            ✓ Success
+          </button>
+          <button
+            onClick={() => setNodeStatus('fail')}
+            className={
+              'flex-1 rounded-md border px-2 py-1.5 text-sm ' +
+              (status === 'fail'
+                ? 'border-red-500 bg-red-950/40 text-red-300'
+                : 'border-neutral-700 text-neutral-400 hover:bg-neutral-800')
+            }
+          >
+            ✗ Fail
+          </button>
+          <button
+            onClick={() => setNodeStatus(null)}
+            className="rounded-md border border-neutral-700 px-2 py-1.5 text-sm text-neutral-500 hover:bg-neutral-800"
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       <label className="block">

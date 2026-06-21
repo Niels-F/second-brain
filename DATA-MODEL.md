@@ -63,6 +63,7 @@ create table if not exists node (
   next_action   text,                        -- "where I left off"
   maturity      real not null default 0,     -- 0 = rough, 1 = settled
   image_url     text,                        -- public URL of an uploaded picture
+  status        text,                        -- 'success' | 'fail' | null
   pos_x         real not null default 0,
   pos_y         real not null default 0,
   created_at    timestamptz not null default now(),
