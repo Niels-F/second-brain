@@ -15,6 +15,7 @@ import { useCreateNode, useNodes, useUpdateNodePosition } from '../nodes/hooks'
 import { useCreateLink, useDeleteLink, useLinks } from '../links/hooks'
 import type { MindNode } from '../nodes/types'
 import type { Link } from '../links/types'
+import { NodePanel } from './NodePanel'
 
 type NodeData = { label: string; color: string }
 
@@ -59,6 +60,7 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
   const linksQ = useLinks(projectId)
   const createLink = useCreateLink(projectId)
   const deleteLink = useDeleteLink(projectId)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
 
   const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data])
   const colorById = useMemo(() => {
@@ -126,6 +128,9 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
     })
   }
 
+  const selectedNode =
+    nodesQ.data?.find((n) => n.id === selectedNodeId) ?? null
+
   return (
     <div className="relative h-full w-full">
       <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/90 p-2 backdrop-blur">
@@ -158,6 +163,8 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
+        onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+        onPaneClick={() => setSelectedNodeId(null)}
         onNodeDragStop={(_, node) =>
           updatePosition.mutate({
             id: node.id,
@@ -171,6 +178,15 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
         <Background />
         <Controls />
       </ReactFlow>
+
+      {selectedNode && (
+        <NodePanel
+          node={selectedNode}
+          categories={categories}
+          projectId={projectId}
+          onClose={() => setSelectedNodeId(null)}
+        />
+      )}
     </div>
   )
 }
