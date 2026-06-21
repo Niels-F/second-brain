@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import type { MindNode } from '../nodes/types'
 import type { Category } from '../categories/types'
+import { uploadNodeImage } from '../nodes/api'
 import { useDeleteNode, useUpdateNode } from '../nodes/hooks'
 
 export function NodePanel({
@@ -21,6 +22,8 @@ export function NodePanel({
   const [content, setContent] = useState(node.content ?? '')
   const [nextAction, setNextAction] = useState(node.next_action ?? '')
   const [maturity, setMaturity] = useState(node.maturity)
+  const [imageUrl, setImageUrl] = useState<string | null>(node.image_url ?? null)
+  const [uploading, setUploading] = useState(false)
 
   // When a different node is selected, refill the form with its values.
   useEffect(() => {
@@ -28,6 +31,7 @@ export function NodePanel({
     setContent(node.content ?? '')
     setNextAction(node.next_action ?? '')
     setMaturity(node.maturity)
+    setImageUrl(node.image_url ?? null)
   }, [node.id])
 
   const category = categories.find((c) => c.id === node.category_id)
@@ -40,6 +44,7 @@ export function NodePanel({
         content,
         next_action: nextAction,
         maturity,
+        image_url: imageUrl,
       },
     })
   }
@@ -48,6 +53,27 @@ export function NodePanel({
     if (window.confirm('Delete this node?')) {
       deleteNode.mutate(node.id, { onSuccess: onClose })
     }
+  }
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file later
+    if (!file) return
+    setUploading(true)
+    try {
+      const url = await uploadNodeImage(file)
+      setImageUrl(url)
+      updateNode.mutate({ id: node.id, fields: { image_url: url } })
+    } catch (err) {
+      window.alert('Upload failed: ' + (err as Error).message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function handleRemoveImage() {
+    setImageUrl(null)
+    updateNode.mutate({ id: node.id, fields: { image_url: null } })
   }
 
   return (
@@ -93,10 +119,40 @@ export function NodePanel({
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          rows={6}
+          rows={5}
           className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
         />
       </label>
+
+      {/* Picture / graph */}
+      <div>
+        <span className="text-xs text-neutral-500">Picture</span>
+        {imageUrl ? (
+          <div className="mt-1 space-y-2">
+            <img
+              src={imageUrl}
+              alt=""
+              className="max-h-40 w-full rounded-md object-cover"
+            />
+            <button
+              onClick={handleRemoveImage}
+              className="text-xs text-neutral-400 hover:text-red-400"
+            >
+              Remove picture
+            </button>
+          </div>
+        ) : (
+          <label className="mt-1 flex cursor-pointer items-center justify-center rounded-md border border-dashed border-neutral-700 bg-neutral-800 px-2 py-3 text-sm text-neutral-400 hover:border-neutral-600">
+            {uploading ? 'Uploading…' : '+ Upload image'}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFile}
+              className="hidden"
+            />
+          </label>
+        )}
+      </div>
 
       <label className="block">
         <span className="text-xs text-neutral-500">

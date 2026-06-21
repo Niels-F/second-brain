@@ -62,6 +62,7 @@ create table if not exists node (
   content       text,                        -- notes / markdown
   next_action   text,                        -- "where I left off"
   maturity      real not null default 0,     -- 0 = rough, 1 = settled
+  image_url     text,                        -- public URL of an uploaded picture
   pos_x         real not null default 0,
   pos_y         real not null default 0,
   created_at    timestamptz not null default now(),
@@ -108,3 +109,36 @@ create policy "own links" on link for all using (
 > Note on layout: React Flow needs explicit `pos_x` / `pos_y`, so we store them. `maturity` is
 > kept separately so we can *optionally* offer an auto-layout that places nodes by category +
 > maturity (distance from center) without losing manual positions.
+
+## Storage (node images)
+
+Node images are uploaded to a Supabase **Storage** bucket (`node-images`, public read) and the
+public URL is saved in `node.image_url`. Files are stored under a per-user folder
+(`<user_id>/<uuid>.<ext>`). Setup SQL:
+
+```sql
+-- Column (if upgrading an existing DB)
+alter table node add column if not exists image_url text;
+
+-- Public bucket for node images
+insert into storage.buckets (id, name, public)
+values ('node-images', 'node-images', true)
+on conflict (id) do nothing;
+
+-- Logged-in users can upload/update/delete; reads are public via the bucket.
+drop policy if exists "node-images read" on storage.objects;
+create policy "node-images read" on storage.objects
+  for select using (bucket_id = 'node-images');
+
+drop policy if exists "node-images insert" on storage.objects;
+create policy "node-images insert" on storage.objects
+  for insert to authenticated with check (bucket_id = 'node-images');
+
+drop policy if exists "node-images update" on storage.objects;
+create policy "node-images update" on storage.objects
+  for update to authenticated using (bucket_id = 'node-images');
+
+drop policy if exists "node-images delete" on storage.objects;
+create policy "node-images delete" on storage.objects
+  for delete to authenticated using (bucket_id = 'node-images');
+```

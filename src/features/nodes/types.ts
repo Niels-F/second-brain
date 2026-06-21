@@ -7,6 +7,7 @@ export type MindNode = {
   content: string | null
   next_action: string | null
   maturity: number
+  image_url: string | null
   pos_x: number
   pos_y: number
   created_at: string

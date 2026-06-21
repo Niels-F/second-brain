@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -10,35 +10,32 @@ import {
   type Connection,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCategories, useSeedCategories } from '../categories/hooks'
 import { useCreateNode, useNodes, useUpdateNodePosition } from '../nodes/hooks'
 import { useCreateLink, useDeleteLink, useLinks } from '../links/hooks'
+import { createNode as apiCreateNode } from '../nodes/api'
+import { createLink as apiCreateLink } from '../links/api'
 import type { MindNode } from '../nodes/types'
 import type { Link } from '../links/types'
 import { NodePanel } from './NodePanel'
+import { MindMapNode } from './MindMapNode'
 
-type NodeData = { label: string; color: string }
+// Registered once so React Flow knows how to render our 'mind' node type.
+const nodeTypes = { mind: MindMapNode }
 
-// Convert our database rows into the shape React Flow wants to render.
 function toRFNodes(
   nodes: MindNode[],
   colorById: Map<string, string>,
-): RFNode<NodeData>[] {
+  onAddChild: (id: string) => void,
+): RFNode[] {
   return nodes.map((n) => {
     const color = (n.category_id && colorById.get(n.category_id)) || '#94a3b8'
     return {
       id: n.id,
+      type: 'mind',
       position: { x: n.pos_x, y: n.pos_y },
-      data: { label: n.title, color },
-      style: {
-        background: '#171717',
-        color: '#e5e5e5',
-        border: '1px solid #404040',
-        borderLeft: `4px solid ${color}`,
-        borderRadius: 8,
-        padding: '8px 12px',
-        fontSize: 13,
-      },
+      data: { label: n.title, color, image: n.image_url ?? null, onAddChild },
     }
   })
 }
@@ -52,6 +49,7 @@ function toRFEdges(links: Link[]): RFEdge[] {
 }
 
 export function MindMapCanvas({ projectId }: { projectId: string }) {
+  const qc = useQueryClient()
   const categoriesQ = useCategories(projectId)
   const seed = useSeedCategories(projectId)
   const nodesQ = useNodes(projectId)
@@ -78,12 +76,34 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
     }
   }, [categoriesQ.isSuccess, categories.length, seed])
 
-  // React Flow keeps its own copy of nodes/edges (so interaction is smooth); we
-  // sync from the database whenever the server data changes.
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RFNode<NodeData>>([])
+  // The "+" on a node: create a child nearby and link parent → child.
+  // Uses the API functions directly (not the mutation hooks) so this callback
+  // stays referentially stable — otherwise the sync effect below re-runs every
+  // render and React Flow loops ("Maximum update depth exceeded").
+  const handleAddChild = useCallback(
+    async (parentId: string) => {
+      const all = qc.getQueryData<MindNode[]>(['nodes', projectId]) ?? []
+      const parent = all.find((n) => n.id === parentId)
+      const child = await apiCreateNode({
+        projectId,
+        categoryId: parent?.category_id ?? null,
+        title: 'New node',
+        posX: (parent?.pos_x ?? 0) + 220,
+        posY: (parent?.pos_y ?? 0) + 40,
+      })
+      await apiCreateLink({ projectId, sourceId: parentId, targetId: child.id })
+      qc.invalidateQueries({ queryKey: ['nodes', projectId] })
+      qc.invalidateQueries({ queryKey: ['links', projectId] })
+      setSelectedNodeId(child.id)
+    },
+    [qc, projectId],
+  )
+
+  // React Flow keeps its own copy of nodes/edges; we sync from the database.
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RFNode>([])
   useEffect(() => {
-    if (nodesQ.data) setRfNodes(toRFNodes(nodesQ.data, colorById))
-  }, [nodesQ.data, colorById, setRfNodes])
+    if (nodesQ.data) setRfNodes(toRFNodes(nodesQ.data, colorById, handleAddChild))
+  }, [nodesQ.data, colorById, handleAddChild, setRfNodes])
 
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<RFEdge>([])
   useEffect(() => {
@@ -102,7 +122,6 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
     const countInCat = (nodesQ.data ?? []).filter(
       (n) => n.category_id === selectedCat,
     ).length
-    // Lay new nodes out in a column per category — a first hint of the "axes".
     const posX = (catIndex < 0 ? 0 : catIndex) * 260 + 40
     const posY = countInCat * 90 + 40
     createNode.mutate({
@@ -114,22 +133,16 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
     })
   }
 
-  // Fired when you drag from one node's handle and release on another.
   function handleConnect(conn: Connection) {
     if (!conn.source || !conn.target || conn.source === conn.target) return
     const exists = (linksQ.data ?? []).some(
       (l) => l.source_node_id === conn.source && l.target_node_id === conn.target,
     )
     if (exists) return
-    createLink.mutate({
-      projectId,
-      sourceId: conn.source,
-      targetId: conn.target,
-    })
+    createLink.mutate({ projectId, sourceId: conn.source, targetId: conn.target })
   }
 
-  const selectedNode =
-    nodesQ.data?.find((n) => n.id === selectedNodeId) ?? null
+  const selectedNode = nodesQ.data?.find((n) => n.id === selectedNodeId) ?? null
 
   return (
     <div className="relative h-full w-full">
@@ -152,12 +165,13 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
           + Add node
         </button>
         <span className="ml-1 text-xs text-neutral-500">
-          drag a node's dot onto another to link · select a link + Backspace to remove
+          click the + on a node to branch · drag a node's dot onto another to link
         </span>
       </div>
 
       <ReactFlow
         colorMode="dark"
+        nodeTypes={nodeTypes}
         nodes={rfNodes}
         edges={rfEdges}
         onNodesChange={onNodesChange}
