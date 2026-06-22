@@ -12,7 +12,7 @@ export function EntranceScreen({ onOpen }: { onOpen: (id: string) => void }) {
   const createProject = useCreateProject()
   const [search, setSearch] = useState('')
   const [newName, setNewName] = useState('')
-  const [view, setView] = useState<'list' | '3d'>('list')
+  const [view, setView] = useState<'list' | '3d'>('3d')
 
   const items = projects.data ?? []
 
@@ -33,6 +33,11 @@ export function EntranceScreen({ onOpen }: { onOpen: (id: string) => void }) {
     createProject.mutate(name, { onSuccess: () => setNewName('') })
   }
 
+  function handleQuickCreate() {
+    const name = window.prompt('New project name')?.trim()
+    if (name) createProject.mutate(name)
+  }
+
   if (view === '3d') {
     return (
       <main className="relative h-screen w-full bg-neutral-950 text-neutral-100">
@@ -41,10 +46,22 @@ export function EntranceScreen({ onOpen }: { onOpen: (id: string) => void }) {
             onClick={() => setView('list')}
             className="text-neutral-300 hover:text-white"
           >
-            ← List
+            ☰ List
+          </button>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects…"
+            className="w-44 rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-sm text-neutral-100 outline-none focus:border-indigo-500"
+          />
+          <button
+            onClick={handleQuickCreate}
+            className="rounded bg-indigo-600 px-3 py-1 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            + New project
           </button>
           <span className="text-neutral-500">
-            {items.length} project{items.length === 1 ? '' : 's'} · drag to orbit · click an orb to open
+            {filtered.length} shown · drag to orbit · click to open
           </span>
         </div>
         <Suspense
@@ -54,7 +71,7 @@ export function EntranceScreen({ onOpen }: { onOpen: (id: string) => void }) {
             </div>
           }
         >
-          <Projects3D projects={items} onOpen={onOpen} />
+          <Projects3D projects={filtered} onOpen={onOpen} />
         </Suspense>
       </main>
     )
