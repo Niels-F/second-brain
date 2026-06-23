@@ -39,6 +39,8 @@ create table if not exists project (
   name          text not null,
   description   text,
   color         text default '#6366f1',
+  emoji         text,
+  image_url     text,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   last_opened_at timestamptz

@@ -5,11 +5,15 @@ import {
   listProjects,
   renameProject,
   touchProject,
+  updateProject,
 } from './api'
+import type { Project } from './types'
 
 // React Query handles caching + loading/error state for us. The "query key"
 // ['projects'] identifies this data; after any change we invalidate it so the
 // list refetches and the UI updates automatically.
+type ProjectFields = Partial<Pick<Project, 'name' | 'emoji' | 'image_url' | 'color'>>
+
 const KEY = ['projects']
 
 export function useProjects() {
@@ -44,6 +48,15 @@ export function useOpenProject() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => touchProject(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  })
+}
+
+export function useUpdateProject() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; fields: ProjectFields }) =>
+      updateProject(vars.id, vars.fields),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   })
 }

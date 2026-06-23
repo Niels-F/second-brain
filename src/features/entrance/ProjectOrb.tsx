@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
+import { Billboard, Html, Image } from '@react-three/drei'
 import { AdditiveBlending, CanvasTexture, type Group, type Sprite } from 'three'
 import type { Project } from '../projects/types'
 
@@ -92,8 +92,21 @@ export function ProjectOrb({
         />
       </mesh>
 
-      <Html center position={[0, -1.3, 0]} distanceFactor={10}>
-        <div className="pointer-events-none whitespace-nowrap rounded bg-black/60 px-2 py-0.5 text-xs text-white">
+      {project.image_url ? (
+        // Real textured plane in the 3D scene (Billboard keeps it facing you).
+        <Billboard position={[0, 1.7, 0]}>
+          <Image url={project.image_url} scale={1.2} transparent />
+        </Billboard>
+      ) : project.emoji ? (
+        <Html center position={[0, 1.5, 0]} distanceFactor={8}>
+          <span className="pointer-events-none text-3xl leading-none">
+            {project.emoji}
+          </span>
+        </Html>
+      ) : null}
+
+      <Html center position={[0, -1.7, 0]} distanceFactor={14}>
+        <div className="pointer-events-none whitespace-nowrap rounded bg-black/60 px-3 py-1 text-lg font-semibold text-white">
           {project.name}
         </div>
       </Html>

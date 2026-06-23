@@ -5,6 +5,8 @@ export type Project = {
   name: string
   description: string | null
   color: string | null
+  emoji: string | null
+  image_url: string | null
   created_at: string
   updated_at: string
   last_opened_at: string | null

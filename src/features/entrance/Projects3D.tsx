@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stars } from '@react-three/drei'
 import type { Project } from '../projects/types'
@@ -30,15 +31,17 @@ export default function Projects3D({
       <pointLight position={[10, 10, 10]} intensity={1.2} />
       <Stars radius={60} depth={40} count={3000} factor={4} fade speed={1} />
       <OrbitControls enablePan={false} minDistance={8} maxDistance={40} />
-      {projects.map((p, i) => (
-        <ProjectOrb
-          key={p.id}
-          project={p}
-          position={positionFor(i, projects.length)}
-          featured={i < 3}
-          onOpen={onOpen}
-        />
-      ))}
+      <Suspense fallback={null}>
+        {projects.map((p, i) => (
+          <ProjectOrb
+            key={p.id}
+            project={p}
+            position={positionFor(i, projects.length)}
+            featured={i < 3}
+            onOpen={onOpen}
+          />
+        ))}
+      </Suspense>
     </Canvas>
   )
 }

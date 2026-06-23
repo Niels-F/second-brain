@@ -51,3 +51,26 @@ export async function touchProject(id: string): Promise<void> {
     .eq('id', id)
   if (error) throw error
 }
+
+export async function updateProject(
+  id: string,
+  fields: Partial<Pick<Project, 'name' | 'emoji' | 'image_url' | 'color'>>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('project')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+// Reuses the node-images bucket (it's just an image store).
+export async function uploadProjectImage(file: File): Promise<string> {
+  const { data: u } = await supabase.auth.getUser()
+  const userId = u.user?.id
+  if (!userId) throw new Error('Not signed in')
+  const ext = file.name.split('.').pop()
+  const path = `${userId}/proj-${crypto.randomUUID()}${ext ? '.' + ext : ''}`
+  const { error } = await supabase.storage.from('node-images').upload(path, file)
+  if (error) throw error
+  return supabase.storage.from('node-images').getPublicUrl(path).data.publicUrl
+}
