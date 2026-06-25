@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import type { CSSProperties } from 'react'
 import type { NodeStatus } from '../nodes/types'
+import { openExternalLink } from '../../lib/openLink'
 
 // The shape we stuff into each React Flow node's `data`.
 export type MindNodeData = {
@@ -9,6 +10,7 @@ export type MindNodeData = {
   image: string | null
   isLatest: boolean // the most-recently-touched node → gentle pulse, everything else stays normal
   status: NodeStatus // success / fail ring
+  link: string | null // file path (opens VS Code) or URL
   onAddChild: (id: string) => void
 }
 
@@ -51,6 +53,19 @@ export function MindMapNode({ id, data }: NodeProps) {
         )}
         <span className="max-w-[160px] truncate">{d.label}</span>
       </div>
+
+      {d.link && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            openExternalLink(d.link!)
+          }}
+          title="Open link"
+          className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-700 text-[10px] hover:bg-neutral-600"
+        >
+          🔗
+        </button>
+      )}
 
       <button
         onClick={(e) => {

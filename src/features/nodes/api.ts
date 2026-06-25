@@ -49,7 +49,17 @@ export async function updateNodePosition(
 export async function updateNode(
   id: string,
   fields: Partial<
-    Pick<MindNode, 'title' | 'content' | 'next_action' | 'maturity' | 'image_url' | 'status'>
+    Pick<
+      MindNode,
+      | 'title'
+      | 'content'
+      | 'next_action'
+      | 'maturity'
+      | 'image_url'
+      | 'status'
+      | 'link'
+      | 'github_path'
+    >
   >,
 ): Promise<void> {
   const now = new Date().toISOString()

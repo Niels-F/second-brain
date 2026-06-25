@@ -54,7 +54,12 @@ export async function touchProject(id: string): Promise<void> {
 
 export async function updateProject(
   id: string,
-  fields: Partial<Pick<Project, 'name' | 'emoji' | 'image_url' | 'color'>>,
+  fields: Partial<
+    Pick<
+      Project,
+      'name' | 'emoji' | 'image_url' | 'color' | 'github_repo' | 'github_branch'
+    >
+  >,
 ): Promise<void> {
   const { error } = await supabase
     .from('project')

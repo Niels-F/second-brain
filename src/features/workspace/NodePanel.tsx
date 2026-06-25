@@ -2,7 +2,10 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import type { MindNode, NodeStatus } from '../nodes/types'
 import type { Category } from '../categories/types'
 import { uploadNodeImage } from '../nodes/api'
+import { openExternalLink } from '../../lib/openLink'
 import { useDeleteNode, useUpdateNode } from '../nodes/hooks'
+import { useProjects } from '../projects/hooks'
+import { GitHubFilePreview } from './GitHubFilePreview'
 
 export function NodePanel({
   node,
@@ -17,6 +20,8 @@ export function NodePanel({
 }) {
   const updateNode = useUpdateNode(projectId)
   const deleteNode = useDeleteNode(projectId)
+  const projects = useProjects()
+  const project = projects.data?.find((p) => p.id === projectId)
 
   const [title, setTitle] = useState(node.title)
   const [content, setContent] = useState(node.content ?? '')
@@ -25,6 +30,8 @@ export function NodePanel({
   const [imageUrl, setImageUrl] = useState<string | null>(node.image_url ?? null)
   const [uploading, setUploading] = useState(false)
   const [status, setStatus] = useState<NodeStatus>(node.status)
+  const [link, setLink] = useState(node.link ?? '')
+  const [githubPath, setGithubPath] = useState(node.github_path ?? '')
 
   // When a different node is selected, refill the form with its values.
   useEffect(() => {
@@ -34,6 +41,8 @@ export function NodePanel({
     setMaturity(node.maturity)
     setImageUrl(node.image_url ?? null)
     setStatus(node.status)
+    setLink(node.link ?? '')
+    setGithubPath(node.github_path ?? '')
   }, [node.id])
 
   const category = categories.find((c) => c.id === node.category_id)
@@ -48,6 +57,8 @@ export function NodePanel({
         maturity,
         image_url: imageUrl,
         status,
+        link: link.trim() || null,
+        github_path: githubPath.trim() || null,
       },
     })
   }
@@ -131,6 +142,56 @@ export function NodePanel({
           className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
         />
       </label>
+
+      <label className="block">
+        <span className="text-xs text-neutral-500">Link (file path or URL)</span>
+        <div className="mt-1 flex gap-2">
+          <input
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="/path/to/file.py  or  https://…"
+            className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
+          />
+          <button
+            type="button"
+            onClick={() => openExternalLink(link)}
+            disabled={!link.trim()}
+            className="shrink-0 rounded-md border border-neutral-700 px-3 text-sm hover:bg-neutral-800 disabled:opacity-40"
+          >
+            Open
+          </button>
+        </div>
+        <span className="mt-1 block text-[11px] text-neutral-600">
+          A path starting with / opens in VS Code. A URL opens in the browser.
+        </span>
+      </label>
+
+      <div>
+        <span className="text-xs text-neutral-500">GitHub file</span>
+        {project?.github_repo ? (
+          <>
+            <input
+              value={githubPath}
+              onChange={(e) => setGithubPath(e.target.value)}
+              placeholder="path/in/repo/notes.md"
+              className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
+            />
+            {node.github_path && (
+              <div className="mt-2">
+                <GitHubFilePreview
+                  repo={project.github_repo}
+                  branch={project.github_branch ?? 'main'}
+                  path={node.github_path}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="mt-1 text-[11px] text-neutral-600">
+            Connect a repo to this project (top bar) to preview files here.
+          </p>
+        )}
+      </div>
 
       {/* Picture / graph */}
       <div>

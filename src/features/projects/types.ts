@@ -7,6 +7,8 @@ export type Project = {
   color: string | null
   emoji: string | null
   image_url: string | null
+  github_repo: string | null
+  github_branch: string | null
   created_at: string
   updated_at: string
   last_opened_at: string | null

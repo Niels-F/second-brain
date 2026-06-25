@@ -11,6 +11,8 @@ export type MindNode = {
   maturity: number
   image_url: string | null
   status: NodeStatus
+  link: string | null
+  github_path: string | null
   pos_x: number
   pos_y: number
   created_at: string

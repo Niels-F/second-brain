@@ -12,7 +12,12 @@ import type { Project } from './types'
 // React Query handles caching + loading/error state for us. The "query key"
 // ['projects'] identifies this data; after any change we invalidate it so the
 // list refetches and the UI updates automatically.
-type ProjectFields = Partial<Pick<Project, 'name' | 'emoji' | 'image_url' | 'color'>>
+type ProjectFields = Partial<
+  Pick<
+    Project,
+    'name' | 'emoji' | 'image_url' | 'color' | 'github_repo' | 'github_branch'
+  >
+>
 
 const KEY = ['projects']
 

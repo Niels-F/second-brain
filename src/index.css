@@ -22,3 +22,36 @@ body {
 .node-pulse {
   animation: nodePulse 1.6s ease-in-out infinite;
 }
+
+/* Light styling for rendered GitHub markdown previews. */
+.github-md h1,
+.github-md h2,
+.github-md h3 {
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+  color: #e5e5e5;
+}
+.github-md p {
+  margin: 0.4em 0;
+}
+.github-md ul,
+.github-md ol {
+  margin: 0.4em 0;
+  padding-left: 1.2em;
+  list-style: revert;
+}
+.github-md a {
+  color: #818cf8;
+  text-decoration: underline;
+}
+.github-md code {
+  background: #1f1f1f;
+  padding: 0 0.3em;
+  border-radius: 3px;
+}
+.github-md pre {
+  background: #1f1f1f;
+  padding: 0.6em;
+  border-radius: 6px;
+  overflow: auto;
+}

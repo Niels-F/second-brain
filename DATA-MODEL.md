@@ -41,6 +41,8 @@ create table if not exists project (
   color         text default '#6366f1',
   emoji         text,
   image_url     text,
+  github_repo   text,                        -- "owner/name"
+  github_branch text,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   last_opened_at timestamptz
@@ -66,6 +68,8 @@ create table if not exists node (
   maturity      real not null default 0,     -- 0 = rough, 1 = settled
   image_url     text,                        -- public URL of an uploaded picture
   status        text,                        -- 'success' | 'fail' | null
+  link          text,                        -- file path (opens VS Code) or URL
+  github_path   text,                        -- path within the project's repo
   pos_x         real not null default 0,
   pos_y         real not null default 0,
   created_at    timestamptz not null default now(),
