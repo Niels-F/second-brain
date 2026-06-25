@@ -16,7 +16,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCategories, useSeedCategories } from '../categories/hooks'
 import { useCreateNode, useNodes, useUpdateNodePosition } from '../nodes/hooks'
 import { useCreateLink, useDeleteLink, useLinks } from '../links/hooks'
-import { createNode as apiCreateNode } from '../nodes/api'
+import {
+  createNode as apiCreateNode,
+  updateNodePosition as apiUpdatePosition,
+} from '../nodes/api'
 import { createLink as apiCreateLink } from '../links/api'
 import type { MindNode } from '../nodes/types'
 import type { Link } from '../links/types'
@@ -59,6 +62,87 @@ function toRFEdges(links: Link[]): RFEdge[] {
   }))
 }
 
+// Left→right tidy-tree layout from the links: roots on the left, children to the
+// right (x = depth), siblings ordered by creation time and parents centered over
+// their children (y). Returns the new position for every node.
+function computeTreeLayout(
+  nodes: MindNode[],
+  links: Link[],
+): Map<string, { x: number; y: number }> {
+  const X = 260
+  const Y = 90
+  const byId = new Map(nodes.map((n) => [n.id, n]))
+  const children = new Map<string, string[]>()
+  const indeg = new Map<string, number>()
+  nodes.forEach((n) => {
+    children.set(n.id, [])
+    indeg.set(n.id, 0)
+  })
+  for (const l of links) {
+    if (!byId.has(l.source_node_id) || !byId.has(l.target_node_id)) continue
+    children.get(l.source_node_id)!.push(l.target_node_id)
+    indeg.set(l.target_node_id, (indeg.get(l.target_node_id) ?? 0) + 1)
+  }
+  const ctime = (id: string) => byId.get(id)?.created_at ?? ''
+  for (const arr of children.values()) {
+    arr.sort((a, b) => ctime(a).localeCompare(ctime(b)))
+  }
+
+  // depth = longest path from a root (bounded passes, cycle-safe)
+  const depth = new Map<string, number>(nodes.map((n) => [n.id, 0]))
+  for (let pass = 0; pass < nodes.length; pass++) {
+    let changed = false
+    for (const l of links) {
+      if (!byId.has(l.source_node_id) || !byId.has(l.target_node_id)) continue
+      const d = (depth.get(l.source_node_id) ?? 0) + 1
+      if (d > (depth.get(l.target_node_id) ?? 0)) {
+        depth.set(l.target_node_id, d)
+        changed = true
+      }
+    }
+    if (!changed) break
+  }
+
+  // y via DFS over the forest; parents centered over their children
+  const roots = nodes
+    .filter((n) => (indeg.get(n.id) ?? 0) === 0)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .map((n) => n.id)
+  const yRow = new Map<string, number>()
+  const visited = new Set<string>()
+  let nextRow = 0
+  function dfs(id: string): number {
+    if (visited.has(id)) return yRow.get(id) ?? 0
+    visited.add(id)
+    const kids = (children.get(id) ?? []).filter((k) => !visited.has(k))
+    if (kids.length === 0) {
+      const r = nextRow++
+      yRow.set(id, r)
+      return r
+    }
+    const rows = kids.map(dfs)
+    const avg = rows.reduce((a, b) => a + b, 0) / rows.length
+    yRow.set(id, avg)
+    return avg
+  }
+  roots.forEach(dfs)
+  for (const n of nodes) {
+    if (!visited.has(n.id)) {
+      visited.add(n.id)
+      yRow.set(n.id, nextRow++)
+    }
+  }
+
+  const out = new Map<string, { x: number; y: number }>()
+  for (const n of nodes) {
+    out.set(n.id, {
+      x: (depth.get(n.id) ?? 0) * X + 40,
+      y: (yRow.get(n.id) ?? 0) * Y + 40,
+    })
+  }
+  return out
+}
+
 export function MindMapCanvas({ projectId }: { projectId: string }) {
   const qc = useQueryClient()
   const categoriesQ = useCategories(projectId)
@@ -95,13 +179,31 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
   const handleAddChild = useCallback(
     async (parentId: string) => {
       const all = qc.getQueryData<MindNode[]>(['nodes', projectId]) ?? []
+      const links = qc.getQueryData<Link[]>(['links', projectId]) ?? []
       const parent = all.find((n) => n.id === parentId)
+      const baseX = parent?.pos_x ?? 0
+      const baseY = parent?.pos_y ?? 0
+
+      // Place the child to the right of the parent, stacked below any existing
+      // siblings so nothing overlaps — and nothing else moves.
+      const siblingIds = new Set(
+        links
+          .filter((l) => l.source_node_id === parentId)
+          .map((l) => l.target_node_id),
+      )
+      const siblings = all.filter((n) => siblingIds.has(n.id))
+      const posX = baseX + 240
+      const posY =
+        siblings.length === 0
+          ? baseY
+          : Math.max(...siblings.map((s) => s.pos_y)) + 90
+
       const child = await apiCreateNode({
         projectId,
         categoryId: parent?.category_id ?? null,
         title: 'New node',
-        posX: (parent?.pos_x ?? 0) + 220,
-        posY: (parent?.pos_y ?? 0) + 40,
+        posX,
+        posY,
       })
       await apiCreateLink({ projectId, sourceId: parentId, targetId: child.id })
       qc.invalidateQueries({ queryKey: ['nodes', projectId] })
@@ -175,6 +277,28 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
     setSelectedNodeId(last.id)
   }
 
+  // Arrange nodes as a left→right tree, persist positions, then re-frame.
+  async function handleTidy() {
+    const ns = nodesQ.data ?? []
+    const ls = linksQ.data ?? []
+    if (ns.length === 0) return
+    const positions = computeTreeLayout(ns, ls)
+    setRfNodes((cur) =>
+      cur.map((n) => {
+        const p = positions.get(n.id)
+        return p ? { ...n, position: { x: p.x, y: p.y } } : n
+      }),
+    )
+    await Promise.all(
+      ns.map((n) => {
+        const p = positions.get(n.id)
+        return p ? apiUpdatePosition(n.id, p.x, p.y) : Promise.resolve()
+      }),
+    )
+    qc.invalidateQueries({ queryKey: ['nodes', projectId] })
+    rfRef.current?.fitView({ duration: 600 })
+  }
+
   const selectedNode = nodesQ.data?.find((n) => n.id === selectedNodeId) ?? null
 
   return (
@@ -186,6 +310,13 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
           className="rounded border border-neutral-700 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800"
         >
           ↩ Resume
+        </button>
+        <button
+          onClick={handleTidy}
+          title="Arrange nodes left→right by their links (roots left, children right)"
+          className="rounded border border-neutral-700 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800"
+        >
+          ✨ Tidy up
         </button>
         <select
           value={selectedCat}
@@ -211,6 +342,7 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
 
       <ReactFlow
         colorMode="dark"
+        minZoom={0.1}
         nodeTypes={nodeTypes}
         onInit={(inst) => {
           rfRef.current = inst

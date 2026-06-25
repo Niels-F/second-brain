@@ -43,7 +43,7 @@ export function MindMapNode({ id, data }: NodeProps) {
         (d.isLatest ? ' node-pulse' : '')
       }
     >
-      <Handle type="target" position={Position.Top} className="!bg-neutral-500" />
+      <Handle type="target" position={Position.Left} className="!bg-neutral-500" />
 
       <div className="flex items-center gap-2">
         {d.image && (
@@ -63,7 +63,7 @@ export function MindMapNode({ id, data }: NodeProps) {
         +
       </button>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-neutral-500" />
+      <Handle type="source" position={Position.Right} className="!bg-neutral-500" />
     </div>
   )
 }
