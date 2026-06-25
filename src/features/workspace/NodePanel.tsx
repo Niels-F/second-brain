@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { MindNode, NodeStatus } from '../nodes/types'
 import type { Category } from '../categories/types'
 import { uploadNodeImage } from '../nodes/api'
@@ -6,6 +7,7 @@ import { openExternalLink } from '../../lib/openLink'
 import { useDeleteNode, useUpdateNode } from '../nodes/hooks'
 import { useProjects } from '../projects/hooks'
 import { GitHubFilePreview } from './GitHubFilePreview'
+import { listRepoFiles } from '../../lib/github'
 
 export function NodePanel({
   node,
@@ -22,6 +24,12 @@ export function NodePanel({
   const deleteNode = useDeleteNode(projectId)
   const projects = useProjects()
   const project = projects.data?.find((p) => p.id === projectId)
+  const filesQ = useQuery({
+    queryKey: ['ghtree', project?.github_repo, project?.github_branch],
+    queryFn: () =>
+      listRepoFiles(project!.github_repo!, project!.github_branch ?? 'main'),
+    enabled: !!project?.github_repo,
+  })
 
   const [title, setTitle] = useState(node.title)
   const [content, setContent] = useState(node.content ?? '')
@@ -171,11 +179,27 @@ export function NodePanel({
         {project?.github_repo ? (
           <>
             <input
+              list="gh-files"
               value={githubPath}
               onChange={(e) => setGithubPath(e.target.value)}
-              placeholder="path/in/repo/notes.md"
+              placeholder="start typing to pick a file…"
               className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
             />
+            <datalist id="gh-files">
+              {(filesQ.data ?? []).map((f) => (
+                <option key={f} value={f} />
+              ))}
+            </datalist>
+            {filesQ.isLoading && (
+              <span className="mt-1 block text-[11px] text-neutral-600">
+                Loading file list…
+              </span>
+            )}
+            {filesQ.isError && (
+              <span className="mt-1 block text-[11px] text-red-400">
+                Couldn't list files: {(filesQ.error as Error).message}
+              </span>
+            )}
             {node.github_path && (
               <div className="mt-2">
                 <GitHubFilePreview

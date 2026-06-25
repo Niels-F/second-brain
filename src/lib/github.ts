@@ -65,3 +65,27 @@ export async function fetchRepoFile(
   const text = b64 ? base64ToText(b64) : ''
   return { name, kind: lower.endsWith('.md') ? 'markdown' : 'text', text }
 }
+
+// All file paths in the repo (for the file picker / autocomplete).
+export async function listRepoFiles(
+  repo: string,
+  branch: string,
+): Promise<string[]> {
+  const token = getGithubToken()
+  const url = `https://api.github.com/repos/${repo}/git/trees/${encodeURIComponent(
+    branch || 'main',
+  )}?recursive=1`
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+  if (!res.ok) throw new Error(`GitHub ${res.status}`)
+  const data = await res.json()
+  const tree: Array<{ path: string; type: string }> = data.tree ?? []
+  return tree
+    .filter((t) => t.type === 'blob')
+    .map((t) => t.path)
+    .sort()
+}
