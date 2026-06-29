@@ -111,6 +111,20 @@ drop policy if exists "own links" on link;
 create policy "own links" on link for all using (
   exists (select 1 from project p where p.id = link.project_id and p.user_id = auth.uid())
 );
+
+-- Chat memory (the per-project reasoning partner)
+create table if not exists message (
+  id          uuid primary key default gen_random_uuid(),
+  project_id  uuid not null references project(id) on delete cascade,
+  role        text not null,            -- 'user' | 'assistant'
+  content     text not null,
+  created_at  timestamptz not null default now()
+);
+alter table message enable row level security;
+drop policy if exists "own messages" on message;
+create policy "own messages" on message for all using (
+  exists (select 1 from project p where p.id = message.project_id and p.user_id = auth.uid())
+);
 ```
 
 > Note on layout: React Flow needs explicit `pos_x` / `pos_y`, so we store them. `maturity` is

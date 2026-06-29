@@ -1,5 +1,9 @@
+import { useState } from 'react'
 import { useProjects, useUpdateProject } from '../projects/hooks'
 import { getGithubToken, setGithubToken } from '../../lib/github'
+import { WhatsNextButton } from '../ai/WhatsNextButton'
+import { AiSettingsButton } from '../ai/AiSettingsButton'
+import { ChatPanel } from '../chat/ChatPanel'
 import { MindMapCanvas } from './MindMapCanvas'
 
 export function ProjectWorkspace({
@@ -12,6 +16,7 @@ export function ProjectWorkspace({
   const projects = useProjects()
   const project = projects.data?.find((p) => p.id === projectId)
   const update = useUpdateProject()
+  const [chatOpen, setChatOpen] = useState(false)
 
   function handleConnectRepo() {
     const repo = window.prompt(
@@ -55,6 +60,17 @@ export function ProjectWorkspace({
         <h1 className="text-lg font-semibold">{project?.name ?? 'Project'}</h1>
         <div className="ml-auto flex items-center gap-2 text-sm">
           <button
+            onClick={() => setChatOpen((v) => !v)}
+            className="rounded border border-indigo-700 bg-indigo-950/40 px-3 py-1 text-indigo-200 hover:bg-indigo-950/70"
+          >
+            💬 Partner
+          </button>
+          <WhatsNextButton
+            projectId={projectId}
+            projectName={project?.name ?? 'Project'}
+          />
+          <AiSettingsButton />
+          <button
             onClick={handleConnectRepo}
             title="Connect a GitHub repo to this project"
             className="rounded border border-neutral-700 px-3 py-1 text-neutral-300 hover:bg-neutral-900"
@@ -70,8 +86,13 @@ export function ProjectWorkspace({
           </button>
         </div>
       </header>
-      <div className="min-h-0 flex-1">
-        <MindMapCanvas projectId={projectId} />
+      <div className="flex min-h-0 flex-1">
+        <div className="min-w-0 flex-1">
+          <MindMapCanvas projectId={projectId} />
+        </div>
+        {chatOpen && project && (
+          <ChatPanel project={project} onClose={() => setChatOpen(false)} />
+        )}
       </div>
     </div>
   )
