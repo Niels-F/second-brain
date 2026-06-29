@@ -35,7 +35,14 @@ export async function askOllama(prompt: string, system?: string): Promise<string
     )
   }
   if (!res.ok) {
-    throw new Error(`Ollama ${res.status} (check the model name is pulled)`)
+    let msg = `Ollama ${res.status}`
+    try {
+      const e = await res.json()
+      if (e?.error) msg += `: ${e.error}`
+    } catch {
+      /* ignore parse error */
+    }
+    throw new Error(msg)
   }
   const data = await res.json()
   return data?.response ?? '(no response)'
