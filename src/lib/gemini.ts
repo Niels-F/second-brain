@@ -2,7 +2,22 @@
 // never sent to our backend). Move server-side when the app is deployed.
 
 const KEY = 'sb_gemini_key'
-const MODEL = 'gemini-2.0-flash'
+const MODEL_KEY = 'sb_gemini_model'
+const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash'
+
+export const GEMINI_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+]
+
+export function getGeminiModel(): string {
+  return localStorage.getItem(MODEL_KEY) || DEFAULT_GEMINI_MODEL
+}
+
+export function setGeminiModel(m: string) {
+  localStorage.setItem(MODEL_KEY, m)
+}
 
 export function getGeminiKey(): string | null {
   return localStorage.getItem(KEY)
@@ -17,7 +32,7 @@ export async function askGemini(prompt: string, system?: string): Promise<string
   const key = getGeminiKey()
   if (!key) throw new Error('No Gemini API key set')
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${getGeminiModel()}:generateContent?key=${encodeURIComponent(
     key,
   )}`
   const body: Record<string, unknown> = {

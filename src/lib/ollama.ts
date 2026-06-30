@@ -47,3 +47,34 @@ export async function askOllama(prompt: string, system?: string): Promise<string
   const data = await res.json()
   return data?.response ?? '(no response)'
 }
+
+// Installed models (for the dropdown).
+export async function listOllamaModels(): Promise<string[]> {
+  const res = await fetch('http://localhost:11434/api/tags')
+  if (!res.ok) throw new Error(`Ollama ${res.status}`)
+  const data = await res.json()
+  return ((data.models ?? []) as Array<{ name: string }>)
+    .map((m) => m.name)
+    .sort()
+}
+
+// Currently loaded models (status / "running in background").
+export async function listRunningModels(): Promise<
+  { name: string; sizeVram: number }[]
+> {
+  const res = await fetch('http://localhost:11434/api/ps')
+  if (!res.ok) throw new Error(`Ollama ${res.status}`)
+  const data = await res.json()
+  return ((data.models ?? []) as Array<{ name: string; size_vram?: number; size?: number }>).map(
+    (m) => ({ name: m.name, sizeVram: m.size_vram ?? m.size ?? 0 }),
+  )
+}
+
+// Unload a model from RAM now (it reloads automatically on the next request).
+export async function unloadOllamaModel(model: string): Promise<void> {
+  await fetch('http://localhost:11434/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, keep_alive: 0 }),
+  })
+}

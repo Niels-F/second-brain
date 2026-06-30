@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useProjects, useUpdateProject } from '../projects/hooks'
 import { getGithubToken, setGithubToken } from '../../lib/github'
 import { WhatsNextButton } from '../ai/WhatsNextButton'
-import { AiSettingsButton } from '../ai/AiSettingsButton'
+import { AiSettings } from '../ai/AiSettings'
 import { ChatPanel } from '../chat/ChatPanel'
 import { MindMapCanvas } from './MindMapCanvas'
 
@@ -69,7 +69,7 @@ export function ProjectWorkspace({
             projectId={projectId}
             projectName={project?.name ?? 'Project'}
           />
-          <AiSettingsButton />
+          <AiSettings />
           <button
             onClick={handleConnectRepo}
             title="Connect a GitHub repo to this project"
