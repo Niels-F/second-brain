@@ -22,29 +22,47 @@ export function setThink(v: boolean) {
   localStorage.setItem(THINK_KEY, String(v))
 }
 
-export async function askOllama(prompt: string, system?: string): Promise<string> {
-  // Fast mode: /no_think makes thinking models (Qwen) skip the chain-of-thought;
-  // models without thinking simply ignore it.
-  const finalPrompt = getThink() ? prompt : `${prompt}\n\n/no_think`
-  let res: Response
-  try {
-    res = await fetch('http://localhost:11434/api/generate', {
+export async function askOllama(
+  prompt: string,
+  system?: string,
+  opts?: { fast?: boolean },
+): Promise<string> {
+  // "Fast" disables Qwen's chain-of-thought via Ollama's think:false param.
+  // (The /no_think prompt token is NOT respected through the API.)
+  const fast = opts?.fast === true ? true : getThink() === false
+
+  function call(sendThinkFalse: boolean): Promise<Response> {
+    const body: Record<string, unknown> = {
+      model: getOllamaModel(),
+      prompt,
+      system,
+      stream: false,
+      // Ollama defaults to a tiny context (~4k); raise it for real memory.
+      options: { num_ctx: 8192 },
+    }
+    if (sendThinkFalse) body.think = false
+    return fetch('http://localhost:11434/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: getOllamaModel(),
-        prompt: finalPrompt,
-        system,
-        stream: false,
-        // Ollama defaults to a tiny context (~4k); raise it so the partner can
-        // hold real project memory. Bigger = more RAM + slower.
-        options: { num_ctx: 8192 },
-      }),
+      body: JSON.stringify(body),
     })
+  }
+
+  let res: Response
+  try {
+    res = await call(fast)
   } catch {
     throw new Error(
       'Could not reach Ollama. Is it running, and started with OLLAMA_ORIGINS allowing this app?',
     )
+  }
+  // Some models don't support the think param — retry once without it.
+  if (!res.ok && fast) {
+    try {
+      res = await call(false)
+    } catch {
+      throw new Error('Could not reach Ollama.')
+    }
   }
   if (!res.ok) {
     let msg = `Ollama ${res.status}`

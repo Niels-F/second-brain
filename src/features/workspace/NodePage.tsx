@@ -46,8 +46,9 @@ export function NodePage({
         // Best-effort gist — forced fast (/no_think) and never blocks saving.
         try {
           const s = await askAI(
-            `Summarize this note into one or two plain sentences (the gist only, no preamble).\n\nTitle: ${node.title}\n\nNote:\n${content}\n\n/no_think`,
+            `Summarize this note into one or two plain sentences (the gist only, no preamble).\n\nTitle: ${node.title}\n\nNote:\n${content}`,
             'You write short, faithful summaries for a mind-map node.',
+            { fast: true },
           )
           summary = s.trim()
         } catch {

@@ -59,10 +59,11 @@ export function ChatPanel({
         project.chat_summary || '(none yet)'
       }\n\nNew exchanges to fold in:\n${toFold
         .map((m) => `${m.role === 'user' ? 'User' : 'Partner'}: ${m.content}`)
-        .join('\n')}\n\n/no_think`
+        .join('\n')}`
       const next = await askAI(
         prompt,
         'You maintain a concise running memory of a project conversation.',
+        { fast: true },
       )
       await setChatSummary(projectId, next.trim(), cutoff)
       qc.invalidateQueries({ queryKey: ['projects'] })

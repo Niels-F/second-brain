@@ -13,8 +13,13 @@ export function setProvider(p: AiProvider) {
 }
 
 // Single entry point — routes to local Ollama or cloud Gemini.
-export function askAI(prompt: string, system?: string): Promise<string> {
+// opts.fast forces a quick (no-thinking) reply regardless of the global toggle.
+export function askAI(
+  prompt: string,
+  system?: string,
+  opts?: { fast?: boolean },
+): Promise<string> {
   return getProvider() === 'ollama'
-    ? askOllama(prompt, system)
+    ? askOllama(prompt, system, opts)
     : askGemini(prompt, system)
 }
