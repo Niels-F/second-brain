@@ -63,7 +63,8 @@ create table if not exists node (
   project_id    uuid not null references project(id) on delete cascade,
   category_id   uuid references category(id) on delete set null,
   title         text not null,
-  content       text,                        -- notes / markdown
+  content       text,                        -- the page (markdown)
+  summary       text,                        -- AI gist of the page
   next_action   text,                        -- "where I left off"
   maturity      real not null default 0,     -- 0 = rough, 1 = settled
   image_url     text,                        -- public URL of an uploaded picture

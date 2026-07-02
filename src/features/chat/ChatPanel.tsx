@@ -10,6 +10,7 @@ import { useMessages, useAddMessage } from './hooks'
 import { useNodes } from '../nodes/hooks'
 import { askAI, getProvider } from '../../lib/ai'
 import { getGeminiKey, setGeminiKey } from '../../lib/gemini'
+import { getThink, setThink } from '../../lib/ollama'
 import type { Project } from '../projects/types'
 
 export function ChatPanel({
@@ -26,7 +27,14 @@ export function ChatPanel({
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [think, setThinkState] = useState(getThink())
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  function toggleThink() {
+    const next = !think
+    setThinkState(next)
+    setThink(next)
+  }
 
   const messages = messagesQ.data ?? []
 
@@ -97,15 +105,28 @@ export function ChatPanel({
   return (
     <aside className="flex h-full w-96 shrink-0 flex-col border-l border-neutral-800 bg-neutral-900">
       <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
-        <h2 className="truncate font-semibold text-neutral-100">
-          💬 Partner — {project.name}
-        </h2>
-        <button
-          onClick={onClose}
-          className="text-neutral-500 hover:text-neutral-200"
-        >
-          ✕
-        </button>
+        <h2 className="truncate font-semibold text-neutral-100">💬 Partner</h2>
+        <div className="flex items-center gap-2">
+          {getProvider() === 'ollama' && (
+            <button
+              onClick={toggleThink}
+              title={
+                think
+                  ? 'Thinking on — deeper reasoning, slower'
+                  : 'Fast — skips chain-of-thought, quicker'
+              }
+              className="rounded border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 hover:bg-neutral-800"
+            >
+              {think ? '🧠 Think' : '⚡ Fast'}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="text-neutral-500 hover:text-neutral-200"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">

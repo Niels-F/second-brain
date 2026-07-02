@@ -13,7 +13,19 @@ export function setOllamaModel(m: string) {
   localStorage.setItem(MODEL_KEY, m)
 }
 
+// Thinking mode: on = deeper reasoning (slower), off = fast replies.
+const THINK_KEY = 'sb_ai_think'
+export function getThink(): boolean {
+  return localStorage.getItem(THINK_KEY) !== 'false' // default on
+}
+export function setThink(v: boolean) {
+  localStorage.setItem(THINK_KEY, String(v))
+}
+
 export async function askOllama(prompt: string, system?: string): Promise<string> {
+  // Fast mode: /no_think makes thinking models (Qwen) skip the chain-of-thought;
+  // models without thinking simply ignore it.
+  const finalPrompt = getThink() ? prompt : `${prompt}\n\n/no_think`
   let res: Response
   try {
     res = await fetch('http://localhost:11434/api/generate', {
@@ -21,7 +33,7 @@ export async function askOllama(prompt: string, system?: string): Promise<string
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: getOllamaModel(),
-        prompt,
+        prompt: finalPrompt,
         system,
         stream: false,
         // Ollama defaults to a tiny context (~4k); raise it so the partner can

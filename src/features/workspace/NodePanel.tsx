@@ -7,6 +7,7 @@ import { openExternalLink } from '../../lib/openLink'
 import { useDeleteNode, useUpdateNode } from '../nodes/hooks'
 import { useProjects } from '../projects/hooks'
 import { GitHubFilePreview } from './GitHubFilePreview'
+import { NodePage } from './NodePage'
 import { listRepoFiles } from '../../lib/github'
 
 export function NodePanel({
@@ -32,7 +33,6 @@ export function NodePanel({
   })
 
   const [title, setTitle] = useState(node.title)
-  const [content, setContent] = useState(node.content ?? '')
   const [nextAction, setNextAction] = useState(node.next_action ?? '')
   const [maturity, setMaturity] = useState(node.maturity)
   const [imageUrl, setImageUrl] = useState<string | null>(node.image_url ?? null)
@@ -40,11 +40,11 @@ export function NodePanel({
   const [status, setStatus] = useState<NodeStatus>(node.status)
   const [link, setLink] = useState(node.link ?? '')
   const [githubPath, setGithubPath] = useState(node.github_path ?? '')
+  const [pageOpen, setPageOpen] = useState(false)
 
   // When a different node is selected, refill the form with its values.
   useEffect(() => {
     setTitle(node.title)
-    setContent(node.content ?? '')
     setNextAction(node.next_action ?? '')
     setMaturity(node.maturity)
     setImageUrl(node.image_url ?? null)
@@ -60,7 +60,6 @@ export function NodePanel({
       id: node.id,
       fields: {
         title: title.trim() || 'Untitled',
-        content,
         next_action: nextAction,
         maturity,
         image_url: imageUrl,
@@ -141,15 +140,26 @@ export function NodePanel({
         />
       </label>
 
-      <label className="block">
-        <span className="text-xs text-neutral-500">Notes</span>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={5}
-          className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
-        />
-      </label>
+      <div>
+        <span className="text-xs text-neutral-500">Page</span>
+        {node.summary ? (
+          <p className="mt-1 rounded-md border border-neutral-800 bg-neutral-950 p-2 text-sm text-neutral-300">
+            {node.summary}
+          </p>
+        ) : node.content ? (
+          <p className="mt-1 text-xs text-neutral-600">
+            Written — open to read or re-summarize.
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-neutral-600">Empty — open the page to write.</p>
+        )}
+        <button
+          onClick={() => setPageOpen(true)}
+          className="mt-2 w-full rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-200 hover:bg-neutral-800"
+        >
+          ✍️ Open page
+        </button>
+      </div>
 
       <label className="block">
         <span className="text-xs text-neutral-500">Link (file path or URL)</span>
@@ -311,6 +321,14 @@ export function NodePanel({
           {updateNode.isPending ? 'Saving…' : 'Save'}
         </button>
       </div>
+
+      {pageOpen && (
+        <NodePage
+          node={node}
+          projectId={projectId}
+          onClose={() => setPageOpen(false)}
+        />
+      )}
     </aside>
   )
 }

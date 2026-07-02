@@ -47,6 +47,7 @@ function toRFNodes(
         image: n.image_url ?? null,
         isLatest: n.id === latestId,
         status: n.status ?? null,
+        hasPage: !!(n.content && n.content.trim()),
         link: n.link ?? null,
         onAddChild,
       },

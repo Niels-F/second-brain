@@ -10,6 +10,7 @@ export type MindNodeData = {
   image: string | null
   isLatest: boolean // the most-recently-touched node → gentle pulse, everything else stays normal
   status: NodeStatus // success / fail ring
+  hasPage: boolean // has written page content → 📄 marker
   link: string | null // file path (opens VS Code) or URL
   onAddChild: (id: string) => void
 }
@@ -52,6 +53,7 @@ export function MindMapNode({ id, data }: NodeProps) {
           <img src={d.image} alt="" className="h-9 w-9 shrink-0 rounded object-cover" />
         )}
         <span className="max-w-[160px] truncate">{d.label}</span>
+        {d.hasPage && <span className="shrink-0 text-[10px]">📄</span>}
       </div>
 
       {d.link && (

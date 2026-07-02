@@ -7,6 +7,7 @@ export type MindNode = {
   category_id: string | null
   title: string
   content: string | null
+  summary: string | null
   next_action: string | null
   maturity: number
   image_url: string | null

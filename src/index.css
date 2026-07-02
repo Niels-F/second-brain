@@ -55,3 +55,18 @@ body {
   border-radius: 6px;
   overflow: auto;
 }
+
+/* Node page opening animation (fade + slight rise/scale). */
+@keyframes pageOpen {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.page-open {
+  animation: pageOpen 0.18s ease-out;
+}

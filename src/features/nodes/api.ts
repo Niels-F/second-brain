@@ -53,6 +53,7 @@ export async function updateNode(
       MindNode,
       | 'title'
       | 'content'
+      | 'summary'
       | 'next_action'
       | 'maturity'
       | 'image_url'

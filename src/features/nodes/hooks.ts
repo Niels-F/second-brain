@@ -37,6 +37,7 @@ type NodeFields = Partial<
     MindNode,
     | 'title'
     | 'content'
+    | 'summary'
     | 'next_action'
     | 'maturity'
     | 'image_url'
