@@ -14,9 +14,9 @@ import { useNodes } from '../nodes/hooks'
 import { askAI, getProvider } from '../../lib/ai'
 import { getGeminiKey, setGeminiKey } from '../../lib/gemini'
 import { getThink, setThink } from '../../lib/ollama'
+import { getKeepRecent } from '../../lib/aiConfig'
+import { AiParamsPanel } from '../ai/AiParamsPanel'
 import type { Project } from '../projects/types'
-
-const KEEP_RECENT = 10 // messages kept verbatim; older ones fold into the summary
 
 export function ChatPanel({
   project,
@@ -35,6 +35,7 @@ export function ChatPanel({
   const [thinking, setThinking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [think, setThinkState] = useState(getThink())
+  const [paramsOpen, setParamsOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   function toggleThink() {
@@ -74,7 +75,7 @@ export function ChatPanel({
 
   useEffect(() => {
     const all = messagesQ.data ?? []
-    const cutoff = all.length - KEEP_RECENT
+    const cutoff = all.length - getKeepRecent()
     if (cutoff > (project.chat_summary_count ?? 0) && !compressingRef.current) {
       compressingRef.current = true
       compress(all, cutoff).finally(() => {
@@ -97,7 +98,10 @@ export function ChatPanel({
         })
         .join('\n') || '(no nodes yet)'
     const goal = project.description ? `Goal: ${project.description}\n` : ''
-    return `Project: ${project.name}\n${goal}\nMap (nodes):\n${nodeLines}`
+    const instr = project.ai_instructions
+      ? `\nHow the user wants you to approach this project:\n${project.ai_instructions}\n`
+      : ''
+    return `Project: ${project.name}\n${goal}${instr}\nMap (nodes):\n${nodeLines}`
   }
 
   async function send() {
@@ -153,6 +157,13 @@ export function ChatPanel({
       <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
         <h2 className="truncate font-semibold text-neutral-100">💬 Partner</h2>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setParamsOpen(true)}
+            title="AI parameters — instructions, memory, knobs"
+            className="text-neutral-500 hover:text-neutral-200"
+          >
+            ⚙
+          </button>
           {getProvider() === 'ollama' && (
             <button
               onClick={toggleThink}
@@ -224,6 +235,10 @@ export function ChatPanel({
           {thinking ? 'Thinking…' : 'Send'}
         </button>
       </form>
+
+      {paramsOpen && (
+        <AiParamsPanel project={project} onClose={() => setParamsOpen(false)} />
+      )}
     </aside>
   )
 }

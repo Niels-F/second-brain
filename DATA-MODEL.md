@@ -47,7 +47,8 @@ create table if not exists project (
   updated_at    timestamptz not null default now(),
   last_opened_at timestamptz,
   chat_summary  text,                        -- rolling summary of the partner chat
-  chat_summary_count int not null default 0  -- how many messages it covers
+  chat_summary_count int not null default 0, -- how many messages it covers
+  ai_instructions text                        -- per-project "how to think" for the partner
 );
 
 -- Category axes (per project)

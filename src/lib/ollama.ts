@@ -1,3 +1,5 @@
+import { getNumCtx } from './aiConfig'
+
 // Local AI via Ollama (http://localhost:11434). Works while you run the app
 // locally; a deployed HTTPS site can't reach http-localhost (mixed content).
 // Ollama must be started with browser access allowed (OLLAMA_ORIGINS).
@@ -38,7 +40,7 @@ export async function askOllama(
       system,
       stream: false,
       // Ollama defaults to a tiny context (~4k); raise it for real memory.
-      options: { num_ctx: 8192 },
+      options: { num_ctx: getNumCtx() },
     }
     if (sendThinkFalse) body.think = false
     return fetch('http://localhost:11434/api/generate', {

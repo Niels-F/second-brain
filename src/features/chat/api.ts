@@ -34,3 +34,15 @@ export async function setChatSummary(
     .eq('id', projectId)
   if (error) throw error
 }
+
+// Per-project instructions for the partner ("how to think about this project").
+export async function setAiInstructions(
+  projectId: string,
+  text: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('project')
+    .update({ ai_instructions: text || null })
+    .eq('id', projectId)
+  if (error) throw error
+}
