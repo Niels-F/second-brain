@@ -12,4 +12,6 @@ export type Project = {
   created_at: string
   updated_at: string
   last_opened_at: string | null
+  chat_summary: string | null
+  chat_summary_count: number
 }

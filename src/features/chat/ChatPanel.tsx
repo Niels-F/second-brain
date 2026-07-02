@@ -6,12 +6,17 @@ import {
   type KeyboardEvent,
 } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { useQueryClient } from '@tanstack/react-query'
 import { useMessages, useAddMessage } from './hooks'
+import { setChatSummary } from './api'
+import type { ChatMessage } from './types'
 import { useNodes } from '../nodes/hooks'
 import { askAI, getProvider } from '../../lib/ai'
 import { getGeminiKey, setGeminiKey } from '../../lib/gemini'
 import { getThink, setThink } from '../../lib/ollama'
 import type { Project } from '../projects/types'
+
+const KEEP_RECENT = 10 // messages kept verbatim; older ones fold into the summary
 
 export function ChatPanel({
   project,
@@ -24,6 +29,8 @@ export function ChatPanel({
   const messagesQ = useMessages(projectId)
   const nodesQ = useNodes(projectId)
   const addMessage = useAddMessage(projectId)
+  const qc = useQueryClient()
+  const compressingRef = useRef(false)
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,6 +48,40 @@ export function ChatPanel({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages.length, thinking])
+
+  // Fold older messages into the rolling summary (background, best-effort).
+  async function compress(all: ChatMessage[], cutoff: number) {
+    const count = project.chat_summary_count ?? 0
+    const toFold = all.slice(count, cutoff)
+    if (toFold.length === 0) return
+    try {
+      const prompt = `Update the running summary of this project conversation. Preserve goals, decisions made, current state, open questions, and how the user likes to work. Keep it compact.\n\nCurrent summary:\n${
+        project.chat_summary || '(none yet)'
+      }\n\nNew exchanges to fold in:\n${toFold
+        .map((m) => `${m.role === 'user' ? 'User' : 'Partner'}: ${m.content}`)
+        .join('\n')}\n\n/no_think`
+      const next = await askAI(
+        prompt,
+        'You maintain a concise running memory of a project conversation.',
+      )
+      await setChatSummary(projectId, next.trim(), cutoff)
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    } catch {
+      /* try again next turn */
+    }
+  }
+
+  useEffect(() => {
+    const all = messagesQ.data ?? []
+    const cutoff = all.length - KEEP_RECENT
+    if (cutoff > (project.chat_summary_count ?? 0) && !compressingRef.current) {
+      compressingRef.current = true
+      compress(all, cutoff).finally(() => {
+        compressingRef.current = false
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messagesQ.data, project.chat_summary_count])
 
   // The project context re-fed to the partner every turn — this is its "memory".
   function projectContext(): string {
@@ -73,13 +114,17 @@ export function ChatPanel({
     await addMessage.mutateAsync({ role: 'user', content: text })
     setThinking(true)
 
-    const history = messages
-      .slice(-20)
+    const count = project.chat_summary_count ?? 0
+    const recent = messages
+      .slice(count)
       .map((m) => `${m.role === 'user' ? 'User' : 'Partner'}: ${m.content}`)
       .join('\n')
+    const memory = project.chat_summary
+      ? `\n\nMemory — summary of earlier conversation:\n${project.chat_summary}`
+      : ''
     const system =
       "You are the user's ongoing reasoning partner for this project. You remember prior context and decisions from the conversation and the project map. Help them think and plan — recall where things stand, suggest next steps, ask sharp questions. Be concise and concrete. Don't dump large code; focus on reasoning."
-    const prompt = `${projectContext()}\n\nConversation so far:\n${history}\nUser: ${text}\n\nPartner:`
+    const prompt = `${projectContext()}${memory}\n\nRecent conversation:\n${recent}\nUser: ${text}\n\nPartner:`
 
     try {
       const reply = await askAI(prompt, system)

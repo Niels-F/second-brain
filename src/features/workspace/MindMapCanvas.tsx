@@ -34,6 +34,7 @@ function toRFNodes(
   colorById: Map<string, string>,
   onAddChild: (id: string) => void,
   latestId: string | null,
+  highlightedIds: Set<string>,
 ): RFNode[] {
   return nodes.map((n) => {
     const color = (n.category_id && colorById.get(n.category_id)) || '#94a3b8'
@@ -46,6 +47,7 @@ function toRFNodes(
         color,
         image: n.image_url ?? null,
         isLatest: n.id === latestId,
+        highlighted: highlightedIds.has(n.id),
         status: n.status ?? null,
         hasPage: !!(n.content && n.content.trim()),
         link: n.link ?? null,
@@ -55,13 +57,18 @@ function toRFNodes(
   })
 }
 
-function toRFEdges(links: Link[]): RFEdge[] {
-  return links.map((l) => ({
-    id: l.id,
-    source: l.source_node_id,
-    target: l.target_node_id,
-    markerEnd: { type: MarkerType.ArrowClosed },
-  }))
+function toRFEdges(links: Link[], highlightedIds: Set<string>): RFEdge[] {
+  return links.map((l) => {
+    const hot = highlightedIds.has(l.id)
+    return {
+      id: l.id,
+      source: l.source_node_id,
+      target: l.target_node_id,
+      markerEnd: { type: MarkerType.ArrowClosed },
+      animated: hot,
+      style: hot ? { stroke: '#818cf8', strokeWidth: 2 } : undefined,
+    }
+  })
 }
 
 // Left→right tidy-tree layout from the links: roots on the left, children to the
@@ -225,16 +232,36 @@ export function MindMapCanvas({ projectId }: { projectId: string }) {
     ).id
   }, [nodesQ.data])
 
+  // Neighbors of the selected node — pulse them and highlight their links.
+  const connected = useMemo(() => {
+    const nodeIds = new Set<string>()
+    const edgeIds = new Set<string>()
+    if (selectedNodeId) {
+      for (const l of linksQ.data ?? []) {
+        if (l.source_node_id === selectedNodeId) {
+          nodeIds.add(l.target_node_id)
+          edgeIds.add(l.id)
+        } else if (l.target_node_id === selectedNodeId) {
+          nodeIds.add(l.source_node_id)
+          edgeIds.add(l.id)
+        }
+      }
+    }
+    return { nodeIds, edgeIds }
+  }, [selectedNodeId, linksQ.data])
+
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RFNode>([])
   useEffect(() => {
     if (nodesQ.data)
-      setRfNodes(toRFNodes(nodesQ.data, colorById, handleAddChild, latestId))
-  }, [nodesQ.data, colorById, handleAddChild, latestId, setRfNodes])
+      setRfNodes(
+        toRFNodes(nodesQ.data, colorById, handleAddChild, latestId, connected.nodeIds),
+      )
+  }, [nodesQ.data, colorById, handleAddChild, latestId, connected.nodeIds, setRfNodes])
 
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<RFEdge>([])
   useEffect(() => {
-    if (linksQ.data) setRfEdges(toRFEdges(linksQ.data))
-  }, [linksQ.data, setRfEdges])
+    if (linksQ.data) setRfEdges(toRFEdges(linksQ.data, connected.edgeIds))
+  }, [linksQ.data, connected.edgeIds, setRfEdges])
 
   const [selectedCat, setSelectedCat] = useState<string>('')
   useEffect(() => {

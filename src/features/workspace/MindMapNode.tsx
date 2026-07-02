@@ -9,6 +9,7 @@ export type MindNodeData = {
   color: string
   image: string | null
   isLatest: boolean // the most-recently-touched node → gentle pulse, everything else stays normal
+  highlighted: boolean // neighbor of the selected node → pulse to reveal connections
   status: NodeStatus // success / fail ring
   hasPage: boolean // has written page content → 📄 marker
   link: string | null // file path (opens VS Code) or URL
@@ -33,8 +34,9 @@ export function MindMapNode({ id, data }: NodeProps) {
     style.outlineOffset = '2px'
   }
 
-  // Only the single most-recently-touched node glows (pulses). Color via CSS var.
-  if (d.isLatest) {
+  // The latest node pulses; so do the neighbors of a selected node (highlight).
+  const pulsing = d.isLatest || d.highlighted
+  if (pulsing) {
     style['--glow-color'] = d.color
   }
 
@@ -43,7 +45,7 @@ export function MindMapNode({ id, data }: NodeProps) {
       style={style}
       className={
         'relative rounded-lg border border-l-4 border-neutral-700 bg-neutral-900 px-3 py-2 text-[13px] text-neutral-200' +
-        (d.isLatest ? ' node-pulse' : '')
+        (pulsing ? ' node-pulse' : '')
       }
     >
       <Handle type="target" position={Position.Left} className="!bg-neutral-500" />

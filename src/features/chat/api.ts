@@ -21,3 +21,16 @@ export async function addMessage(
     .insert({ project_id: projectId, role, content })
   if (error) throw error
 }
+
+// Persist the rolling conversation summary + how many messages it covers.
+export async function setChatSummary(
+  projectId: string,
+  summary: string,
+  count: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('project')
+    .update({ chat_summary: summary, chat_summary_count: count })
+    .eq('id', projectId)
+  if (error) throw error
+}
