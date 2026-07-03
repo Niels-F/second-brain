@@ -15,11 +15,42 @@ export async function addMessage(
   projectId: string,
   role: 'user' | 'assistant',
   content: string,
+  recalled?: { role: string; content: string }[],
+): Promise<string> {
+  const { data, error } = await supabase
+    .from('message')
+    .insert({ project_id: projectId, role, content, recalled: recalled ?? null })
+    .select('id')
+    .single()
+  if (error) throw error
+  return data.id
+}
+
+// Store a message's embedding (pgvector text format).
+export async function setMessageEmbedding(
+  id: string,
+  embedding: number[],
 ): Promise<void> {
   const { error } = await supabase
     .from('message')
-    .insert({ project_id: projectId, role, content })
+    .update({ embedding: `[${embedding.join(',')}]` })
+    .eq('id', id)
   if (error) throw error
+}
+
+// Semantic search over a project's messages via the match_messages RPC.
+export async function matchMessages(
+  projectId: string,
+  queryEmbedding: number[],
+  count: number,
+): Promise<{ id: string; role: string; content: string }[]> {
+  const { data, error } = await supabase.rpc('match_messages', {
+    p_project: projectId,
+    query_embedding: `[${queryEmbedding.join(',')}]`,
+    match_count: count,
+  })
+  if (error) throw error
+  return data ?? []
 }
 
 // Persist the rolling conversation summary + how many messages it covers.

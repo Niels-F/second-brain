@@ -8,7 +8,7 @@ import {
 import ReactMarkdown from 'react-markdown'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMessages, useAddMessage } from './hooks'
-import { setChatSummary } from './api'
+import { setChatSummary, setMessageEmbedding, matchMessages } from './api'
 import type { ChatMessage } from './types'
 import { useNodes } from '../nodes/hooks'
 import { useInstructions } from '../instructions/hooks'
@@ -16,6 +16,7 @@ import { askAI, getProvider } from '../../lib/ai'
 import { getGeminiKey, setGeminiKey } from '../../lib/gemini'
 import { getThink, setThink } from '../../lib/ollama'
 import { getKeepRecent } from '../../lib/aiConfig'
+import { embed } from '../../lib/embeddings'
 import { AiParamsPanel } from '../ai/AiParamsPanel'
 import type { Project } from '../projects/types'
 
@@ -121,12 +122,43 @@ export function ChatPanel({
 
     setInput('')
     setError(null)
-    await addMessage.mutateAsync({ role: 'user', content: text })
+
+    const recentMsgs = messages.slice(project.chat_summary_count ?? 0)
+    const uid = await addMessage.mutateAsync({ role: 'user', content: text })
     setThinking(true)
 
-    const count = project.chat_summary_count ?? 0
-    const recent = messages
-      .slice(count)
+    // Semantic recall: embed the question (local mxbai-embed) and pull the most
+    // relevant OLDER messages. Best-effort — skipped if embeddings are off.
+    let retrieved = ''
+    let recalled: { role: string; content: string }[] = []
+    let qvec: number[] | null = null
+    if (messages.length > getKeepRecent()) {
+      qvec = await embed(text)
+      if (qvec) {
+        try {
+          const hits = await matchMessages(projectId, qvec, 4)
+          const shown = new Set(recentMsgs.map((m) => m.id))
+          const rel = hits.filter(
+            (h) => !shown.has(h.id) && h.content && h.content.trim(),
+          )
+          if (rel.length) {
+            recalled = rel.map((h) => ({ role: h.role, content: h.content }))
+            retrieved = `\n\nRelevant earlier messages (semantic recall):\n${rel
+              .map((h) => `${h.role === 'user' ? 'User' : 'Partner'}: ${h.content}`)
+              .join('\n')}`
+          }
+        } catch {
+          /* skip retrieval */
+        }
+      }
+    }
+    // Store the user message's embedding (reuse qvec, else embed in background).
+    if (uid) {
+      if (qvec) void setMessageEmbedding(uid, qvec).catch(() => {})
+      else void embed(text).then((v) => v && setMessageEmbedding(uid, v).catch(() => {}))
+    }
+
+    const recent = recentMsgs
       .map((m) => `${m.role === 'user' ? 'User' : 'Partner'}: ${m.content}`)
       .join('\n')
     const memory = project.chat_summary
@@ -134,11 +166,17 @@ export function ChatPanel({
       : ''
     const system =
       "You are the user's ongoing reasoning partner for this project. You remember prior context and decisions from the conversation and the project map. Help them think and plan — recall where things stand, suggest next steps, ask sharp questions. Be concise and concrete. Don't dump large code; focus on reasoning."
-    const prompt = `${projectContext()}${memory}\n\nRecent conversation:\n${recent}\nUser: ${text}\n\nPartner:`
+    const prompt = `${projectContext()}${memory}${retrieved}\n\nRecent conversation:\n${recent}\nUser: ${text}\n\nPartner:`
 
     try {
       const reply = await askAI(prompt, system)
-      await addMessage.mutateAsync({ role: 'assistant', content: reply })
+      const aid = await addMessage.mutateAsync({
+        role: 'assistant',
+        content: reply,
+        recalled: recalled.length ? recalled : undefined,
+      })
+      if (aid)
+        void embed(reply).then((v) => v && setMessageEmbedding(aid, v).catch(() => {}))
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -216,6 +254,22 @@ export function ChatPanel({
               </div>
             ) : (
               m.content
+            )}
+            {m.role === 'assistant' && m.recalled && m.recalled.length > 0 && (
+              <details className="mt-1 text-[11px] text-neutral-500">
+                <summary className="cursor-pointer hover:text-neutral-300">
+                  🔎 recalled {m.recalled.length} earlier message
+                  {m.recalled.length > 1 ? 's' : ''}
+                </summary>
+                <div className="mt-1 space-y-1 border-l border-neutral-700 pl-2">
+                  {m.recalled.map((r, i) => (
+                    <p key={i} className="text-neutral-400">
+                      <span className="text-neutral-600">{r.role}: </span>
+                      {r.content.slice(0, 200)}
+                    </p>
+                  ))}
+                </div>
+              </details>
             )}
           </div>
         ))}

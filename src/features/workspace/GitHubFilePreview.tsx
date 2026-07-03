@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import { fetchRepoFile } from '../../lib/github'
+import { usePins } from '../pinboard/store'
 
 export function GitHubFilePreview({
   repo,
@@ -11,6 +12,7 @@ export function GitHubFilePreview({
   branch: string
   path: string
 }) {
+  const addPin = usePins((s) => s.add)
   const q = useQuery({
     queryKey: ['ghfile', repo, branch, path],
     queryFn: () => fetchRepoFile(repo, branch, path),
@@ -26,11 +28,21 @@ export function GitHubFilePreview({
   const f = q.data!
   if (f.kind === 'image') {
     return (
-      <img
-        src={f.dataUrl}
-        alt={f.name}
-        className="max-h-60 w-full rounded object-contain"
-      />
+      <div className="space-y-1">
+        <img
+          src={f.dataUrl}
+          alt={f.name}
+          className="max-h-60 w-full rounded object-contain"
+        />
+        {f.dataUrl && (
+          <button
+            onClick={() => addPin(f.dataUrl!)}
+            className="text-xs text-neutral-400 hover:text-indigo-300"
+          >
+            📌 Pin to canvas
+          </button>
+        )}
+      </div>
     )
   }
   if (f.kind === 'markdown') {

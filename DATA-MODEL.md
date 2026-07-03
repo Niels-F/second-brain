@@ -122,6 +122,7 @@ create table if not exists message (
   project_id  uuid not null references project(id) on delete cascade,
   role        text not null,            -- 'user' | 'assistant'
   content     text not null,
+  recalled    jsonb,                     -- assistant msgs: the semantically-recalled context
   created_at  timestamptz not null default now()
 );
 alter table message enable row level security;
@@ -144,6 +145,22 @@ drop policy if exists "own instructions" on instruction;
 create policy "own instructions" on instruction for all using (
   exists (select 1 from project p where p.id = instruction.project_id and p.user_id = auth.uid())
 );
+
+-- Semantic recall (pgvector): each message gets a local mxbai-embed-large vector;
+-- match_messages() returns the most similar messages for a project.
+create extension if not exists vector;
+alter table message add column if not exists embedding vector(1024);
+create or replace function match_messages(
+  p_project uuid, query_embedding vector(1024), match_count int
+)
+returns table (id uuid, role text, content text, similarity float)
+language sql stable as $$
+  select m.id, m.role, m.content, 1 - (m.embedding <=> query_embedding) as similarity
+  from message m
+  where m.project_id = p_project and m.embedding is not null
+  order by m.embedding <=> query_embedding
+  limit match_count;
+$$;
 ```
 
 > Note on layout: React Flow needs explicit `pos_x` / `pos_y`, so we store them. `maturity` is
