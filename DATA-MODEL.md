@@ -129,6 +129,21 @@ drop policy if exists "own messages" on message;
 create policy "own messages" on message for all using (
   exists (select 1 from project p where p.id = message.project_id and p.user_id = auth.uid())
 );
+
+-- Per-project instruction docs (CLAUDE.md-style) fed to the AI partner
+create table if not exists instruction (
+  id          uuid primary key default gen_random_uuid(),
+  project_id  uuid not null references project(id) on delete cascade,
+  name        text not null default 'Instructions',
+  content     text,
+  active      boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+alter table instruction enable row level security;
+drop policy if exists "own instructions" on instruction;
+create policy "own instructions" on instruction for all using (
+  exists (select 1 from project p where p.id = instruction.project_id and p.user_id = auth.uid())
+);
 ```
 
 > Note on layout: React Flow needs explicit `pos_x` / `pos_y`, so we store them. `maturity` is

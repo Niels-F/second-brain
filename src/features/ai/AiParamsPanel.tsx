@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { setAiInstructions, setChatSummary } from '../chat/api'
+import { setChatSummary } from '../chat/api'
+import { InstructionsManager } from '../instructions/InstructionsManager'
 import {
   getKeepRecent,
   setKeepRecent,
@@ -18,7 +19,6 @@ export function AiParamsPanel({
   onClose: () => void
 }) {
   const qc = useQueryClient()
-  const [instructions, setInstr] = useState(project.ai_instructions ?? '')
   const [summary, setSummary] = useState(project.chat_summary ?? '')
   const [keepRecent, setKeep] = useState(getKeepRecent())
   const [numCtx, setCtx] = useState(getNumCtx())
@@ -31,7 +31,6 @@ export function AiParamsPanel({
       setKeepRecent(keepRecent)
       setNumCtx(numCtx)
       setThink(think)
-      await setAiInstructions(project.id, instructions.trim())
       const s = summary.trim()
       await setChatSummary(project.id, s, s ? project.chat_summary_count : 0)
       qc.invalidateQueries({ queryKey: ['projects'] })
@@ -63,18 +62,12 @@ export function AiParamsPanel({
           </button>
         </div>
 
-        <label className="block">
+        <div>
           <span className="text-xs text-neutral-500">
-            Instructions for this project (how you want the partner to think)
+            Instruction docs (markdown the partner always reads)
           </span>
-          <textarea
-            value={instructions}
-            onChange={(e) => setInstr(e.target.value)}
-            rows={4}
-            placeholder="e.g. I'm exploring reservoir computing — be rigorous, push back, prefer math over prose."
-            className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 outline-none focus:border-indigo-500"
-          />
-        </label>
+          <InstructionsManager projectId={project.id} />
+        </div>
 
         <label className="mt-4 block">
           <span className="text-xs text-neutral-500">

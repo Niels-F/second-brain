@@ -11,6 +11,7 @@ import { useMessages, useAddMessage } from './hooks'
 import { setChatSummary } from './api'
 import type { ChatMessage } from './types'
 import { useNodes } from '../nodes/hooks'
+import { useInstructions } from '../instructions/hooks'
 import { askAI, getProvider } from '../../lib/ai'
 import { getGeminiKey, setGeminiKey } from '../../lib/gemini'
 import { getThink, setThink } from '../../lib/ollama'
@@ -28,6 +29,7 @@ export function ChatPanel({
   const projectId = project.id
   const messagesQ = useMessages(projectId)
   const nodesQ = useNodes(projectId)
+  const instructionsQ = useInstructions(projectId)
   const addMessage = useAddMessage(projectId)
   const qc = useQueryClient()
   const compressingRef = useRef(false)
@@ -98,8 +100,11 @@ export function ChatPanel({
         })
         .join('\n') || '(no nodes yet)'
     const goal = project.description ? `Goal: ${project.description}\n` : ''
-    const instr = project.ai_instructions
-      ? `\nHow the user wants you to approach this project:\n${project.ai_instructions}\n`
+    const docs = (instructionsQ.data ?? []).filter(
+      (d) => d.active && d.content && d.content.trim(),
+    )
+    const instr = docs.length
+      ? `\nInstructions:\n${docs.map((d) => `## ${d.name}\n${d.content}`).join('\n\n')}\n`
       : ''
     return `Project: ${project.name}\n${goal}${instr}\nMap (nodes):\n${nodeLines}`
   }
