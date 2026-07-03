@@ -3,7 +3,6 @@ import { useProjects, useUpdateProject } from '../projects/hooks'
 import { usePins } from '../pinboard/store'
 import { PinLayer } from '../pinboard/PinLayer'
 import { getGithubToken, setGithubToken } from '../../lib/github'
-import { WhatsNextButton } from '../ai/WhatsNextButton'
 import { AiSettings } from '../ai/AiSettings'
 import { ChatPanel } from '../chat/ChatPanel'
 import { MindMapCanvas } from './MindMapCanvas'
@@ -70,10 +69,6 @@ export function ProjectWorkspace({
           >
             💬 Partner
           </button>
-          <WhatsNextButton
-            projectId={projectId}
-            projectName={project?.name ?? 'Project'}
-          />
           <AiSettings />
           <button
             onClick={handleConnectRepo}

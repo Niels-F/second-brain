@@ -14,10 +14,11 @@ export async function listInstructions(projectId: string): Promise<InstructionDo
 export async function createInstruction(
   projectId: string,
   name: string,
+  content?: string,
 ): Promise<InstructionDoc> {
   const { data, error } = await supabase
     .from('instruction')
-    .insert({ project_id: projectId, name })
+    .insert({ project_id: projectId, name, content: content ?? null })
     .select()
     .single()
   if (error) throw error

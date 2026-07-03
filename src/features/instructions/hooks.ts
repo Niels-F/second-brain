@@ -17,7 +17,8 @@ export function useInstructions(projectId: string) {
 export function useCreateInstruction(projectId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (name: string) => createInstruction(projectId, name),
+    mutationFn: (vars: { name: string; content?: string }) =>
+      createInstruction(projectId, vars.name, vars.content),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['instructions', projectId] }),
   })
 }

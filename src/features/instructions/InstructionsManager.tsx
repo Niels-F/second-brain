@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import {
   useInstructions,
   useCreateInstruction,
@@ -6,9 +6,12 @@ import {
   useDeleteInstruction,
 } from './hooks'
 import { InstructionEditor } from './InstructionEditor'
+import { fetchRepoFile } from '../../lib/github'
 import type { InstructionDoc } from './types'
+import type { Project } from '../projects/types'
 
-export function InstructionsManager({ projectId }: { projectId: string }) {
+export function InstructionsManager({ project }: { project: Project }) {
+  const projectId = project.id
   const q = useInstructions(projectId)
   const create = useCreateInstruction(projectId)
   const update = useUpdateInstruction(projectId)
@@ -19,7 +22,37 @@ export function InstructionsManager({ projectId }: { projectId: string }) {
 
   function addDoc() {
     const name = window.prompt('Name for this instruction doc', 'Instructions')?.trim()
-    if (name) create.mutate(name)
+    if (name) create.mutate({ name })
+  }
+
+  async function importMd(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const text = await file.text()
+    create.mutate({ name: file.name.replace(/\.[^.]+$/, ''), content: text })
+  }
+
+  async function importGithub() {
+    if (!project.github_repo) {
+      window.alert('Connect a GitHub repo to this project first (top bar).')
+      return
+    }
+    const path = window.prompt('Repo file path (e.g. docs/context.md)')?.trim()
+    if (!path) return
+    try {
+      const f = await fetchRepoFile(
+        project.github_repo,
+        project.github_branch ?? 'main',
+        path,
+      )
+      create.mutate({
+        name: path.split('/').pop() || 'GitHub doc',
+        content: f.text ?? '',
+      })
+    } catch (err) {
+      window.alert('Import failed: ' + (err as Error).message)
+    }
   }
 
   return (
@@ -62,12 +95,30 @@ export function InstructionsManager({ projectId }: { projectId: string }) {
           </button>
         </div>
       ))}
-      <button
-        onClick={addDoc}
-        className="mt-1 rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-800"
-      >
-        + Add doc
-      </button>
+
+      <div className="mt-1 flex flex-wrap gap-2 text-xs">
+        <button
+          onClick={addDoc}
+          className="rounded-md border border-neutral-700 px-2 py-1 text-neutral-300 hover:bg-neutral-800"
+        >
+          + Add doc
+        </button>
+        <label className="cursor-pointer rounded-md border border-neutral-700 px-2 py-1 text-neutral-300 hover:bg-neutral-800">
+          Import .md
+          <input
+            type="file"
+            accept=".md,.markdown,.txt,text/*"
+            onChange={importMd}
+            className="hidden"
+          />
+        </label>
+        <button
+          onClick={importGithub}
+          className="rounded-md border border-neutral-700 px-2 py-1 text-neutral-300 hover:bg-neutral-800"
+        >
+          From GitHub
+        </button>
+      </div>
 
       {editing && (
         <InstructionEditor

@@ -38,6 +38,19 @@ export async function setMessageEmbedding(
   if (error) throw error
 }
 
+// Messages missing an embedding (for backfilling older history).
+export async function listUnembedded(
+  projectId: string,
+): Promise<{ id: string; content: string }[]> {
+  const { data, error } = await supabase
+    .from('message')
+    .select('id, content')
+    .eq('project_id', projectId)
+    .is('embedding', null)
+  if (error) throw error
+  return data ?? []
+}
+
 // Semantic search over a project's messages via the match_messages RPC.
 export async function matchMessages(
   projectId: string,

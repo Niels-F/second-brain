@@ -18,6 +18,7 @@ import { getThink, setThink } from '../../lib/ollama'
 import { getKeepRecent } from '../../lib/aiConfig'
 import { embed } from '../../lib/embeddings'
 import { AiParamsPanel } from '../ai/AiParamsPanel'
+import { WhatsNextButton } from '../ai/WhatsNextButton'
 import type { Project } from '../projects/types'
 
 export function ChatPanel({
@@ -200,6 +201,7 @@ export function ChatPanel({
       <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
         <h2 className="truncate font-semibold text-neutral-100">💬 Partner</h2>
         <div className="flex items-center gap-2">
+          <WhatsNextButton projectId={project.id} projectName={project.name} />
           <button
             onClick={() => setParamsOpen(true)}
             title="AI parameters — instructions, memory, knobs"
