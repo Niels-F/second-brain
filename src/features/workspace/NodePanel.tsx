@@ -8,6 +8,7 @@ import { useDeleteNode, useUpdateNode } from '../nodes/hooks'
 import { useProjects } from '../projects/hooks'
 import { GitHubFilePreview } from './GitHubFilePreview'
 import { NodePage } from './NodePage'
+import { usePins } from '../pinboard/store'
 import { listRepoFiles } from '../../lib/github'
 
 export function NodePanel({
@@ -23,6 +24,7 @@ export function NodePanel({
 }) {
   const updateNode = useUpdateNode(projectId)
   const deleteNode = useDeleteNode(projectId)
+  const addPin = usePins((s) => s.add)
   const projects = useProjects()
   const project = projects.data?.find((p) => p.id === projectId)
   const filesQ = useQuery({
@@ -237,12 +239,20 @@ export function NodePanel({
               alt=""
               className="max-h-40 w-full rounded-md object-cover"
             />
-            <button
-              onClick={handleRemoveImage}
-              className="text-xs text-neutral-400 hover:text-red-400"
-            >
-              Remove picture
-            </button>
+            <div className="flex gap-3 text-xs">
+              <button
+                onClick={() => addPin(imageUrl)}
+                className="text-neutral-400 hover:text-indigo-300"
+              >
+                📌 Pin to canvas
+              </button>
+              <button
+                onClick={handleRemoveImage}
+                className="text-neutral-400 hover:text-red-400"
+              >
+                Remove picture
+              </button>
+            </div>
           </div>
         ) : (
           <label className="mt-1 flex cursor-pointer items-center justify-center rounded-md border border-dashed border-neutral-700 bg-neutral-800 px-2 py-3 text-sm text-neutral-400 hover:border-neutral-600">

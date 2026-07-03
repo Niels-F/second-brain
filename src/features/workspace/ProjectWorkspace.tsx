@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useProjects, useUpdateProject } from '../projects/hooks'
+import { usePins } from '../pinboard/store'
+import { PinLayer } from '../pinboard/PinLayer'
 import { getGithubToken, setGithubToken } from '../../lib/github'
 import { WhatsNextButton } from '../ai/WhatsNextButton'
 import { AiSettings } from '../ai/AiSettings'
@@ -17,6 +19,9 @@ export function ProjectWorkspace({
   const project = projects.data?.find((p) => p.id === projectId)
   const update = useUpdateProject()
   const [chatOpen, setChatOpen] = useState(false)
+
+  // Clear pinned images when leaving the project.
+  useEffect(() => () => usePins.getState().clear(), [])
 
   function handleConnectRepo() {
     const repo = window.prompt(
@@ -94,6 +99,7 @@ export function ProjectWorkspace({
           <ChatPanel project={project} onClose={() => setChatOpen(false)} />
         )}
       </div>
+      <PinLayer />
     </div>
   )
 }
