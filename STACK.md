@@ -20,7 +20,7 @@ document model would fight the link structure.
 
 ## Phase 0 — setup commands
 
-Run from inside the existing folder (`/Users/nfaucher/Desktop/second-brain`):
+Run from inside the project folder:
 
 ```bash
 # Scaffold Vite into the current folder
