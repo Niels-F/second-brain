@@ -1,4 +1,6 @@
-# Second Brain — a local-LLM project partner with layered memory
+# Engram — a second brain with a local-LLM partner that remembers
+
+> *engram* (n.) — the physical trace a memory leaves behind.
 
 A personal tool for juggling multiple projects and **reconnecting to each one fast** — picking
 up exactly where you left off, even weeks later. Its core is a **project-aware reasoning partner
